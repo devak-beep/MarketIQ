@@ -10,4 +10,4 @@ COPY . .
 ENV FLASK_APP=app.py
 EXPOSE 5001
 
-CMD ["gunicorn", "-b", "0.0.0.0:5001", "app:app", "--workers", "2"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT:-5001} app:app --workers 2"]
