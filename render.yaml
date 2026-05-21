@@ -24,7 +24,7 @@ services:
     repo: https://github.com/devak-beep/MarketIQ
     branch: main
     buildCommand: cd ml-service && pip install -r requirements.txt
-    startCommand: cd ml-service && python app.py
+    startCommand: cd ml-service && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: MODEL_PATH
         value: ml-service/model.pkl
