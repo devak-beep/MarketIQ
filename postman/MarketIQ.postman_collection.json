@@ -1,0 +1,162 @@
+{
+  "info": {
+    "name": "MarketIQ API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/register",
+            "body": {"mode": "raw", "raw": "{\"name\":\"Alice\",\"email\":\"alice@example.com\",\"password\":\"Password123!\"}"}
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/login",
+            "body": {"mode": "raw", "raw": "{\"email\":\"alice@example.com\",\"password\":\"Password123!\"}"}
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/refresh",
+            "body": {"mode": "raw", "raw": "{\"refreshToken\":\"{{refreshToken}}\"}"}
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{baseUrl}}/api/auth/logout",
+            "body": {"mode": "raw", "raw": "{\"refreshToken\":\"{{refreshToken}}\"}"}
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categories",
+      "item": [
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/categories"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "item": [
+        {
+          "name": "Browse Listings",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/listings?search=iphone&categoryId={{categoryId}}&minPrice=100&maxPrice=500"}
+        },
+        {
+          "name": "Get Listing",
+          "request": {"method": "GET", "url": "{{baseUrl}}/api/listings/{{listingId}}"}
+        },
+        {
+          "name": "Create Listing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"}
+            ],
+            "url": "{{baseUrl}}/api/listings",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"title\":\"iPhone 13 Pro\",\"description\":\"Excellent condition, 256GB, includes box\",\"condition\":\"LIKE_NEW\",\"categoryId\":\"{{categoryId}}\",\"askingPrice\":850,\"imageUrls\":[\"https://example.com/image1.jpg\"]}"
+            }
+          }
+        },
+        {
+          "name": "Update Listing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"}
+            ],
+            "url": "{{baseUrl}}/api/listings/{{listingId}}",
+            "body": {"mode": "raw", "raw": "{\"title\":\"Updated title\",\"askingPrice\":799}"}
+          }
+        },
+        {
+          "name": "Delete Listing",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": "{{baseUrl}}/api/listings/{{listingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Offers",
+      "item": [
+        {
+          "name": "Create Offer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"}
+            ],
+            "url": "{{baseUrl}}/api/offers",
+            "body": {"mode": "raw", "raw": "{\"listingId\":\"{{listingId}}\",\"offerPrice\":750,\"message\":\"Can you accept this offer?\"}"}
+          }
+        },
+        {
+          "name": "Sent Offers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": "{{baseUrl}}/api/offers/sent"
+          }
+        },
+        {
+          "name": "Received Offers",
+          "request": {
+            "method": "GET",
+            "header": [{"key": "Authorization", "value": "Bearer {{accessToken}}"}],
+            "url": "{{baseUrl}}/api/offers/received"
+          }
+        },
+        {
+          "name": "Update Offer Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {"key": "Content-Type", "value": "application/json"},
+              {"key": "Authorization", "value": "Bearer {{accessToken}}"}
+            ],
+            "url": "{{baseUrl}}/api/offers/{{offerId}}/status",
+            "body": {"mode": "raw", "raw": "{\"status\":\"ACCEPTED\"}"}
+          }
+        }
+      ]
+    }
+  ]
+}

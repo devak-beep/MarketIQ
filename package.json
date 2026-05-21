@@ -1,0 +1,17 @@
+{
+  "name": "marketiq",
+  "private": true,
+  "workspaces": [
+    "mobile",
+    "server"
+  ],
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:mobile": "npm --prefix mobile run start",
+    "dev:ml": "cd ml-service && flask --app app run --debug",
+    "prisma:studio": "npm --prefix server run prisma:studio"
+  },
+  "dependencies": {
+    "react-native-worklets": "^0.8.3"
+  }
+}

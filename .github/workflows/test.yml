@@ -1,0 +1,87 @@
+name: Test & Build
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: marketiq
+          POSTGRES_PASSWORD: marketiq
+          POSTGRES_DB: marketiq_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: "server/package-lock.json"
+
+      - name: Install server dependencies
+        working-directory: server
+        run: npm install --no-workspaces
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            pg_isready -h localhost -p 5432 && echo "DB ready" && exit 0
+            echo "Waiting for DB... ($i/30)"
+            sleep 1
+          done
+          exit 1
+
+      - name: Run Prisma migrations on test DB
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://marketiq:marketiq@localhost:5432/marketiq_test
+        run: npx prisma migrate deploy
+
+      - name: Run tests
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://marketiq:marketiq@localhost:5432/marketiq_test
+          JWT_SECRET: test-secret-key
+          JWT_REFRESH_SECRET: test-refresh-secret-key
+          NODE_ENV: test
+        run: npm test
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Build server Docker image
+        run: docker build -t marketiq-server:${{ github.sha }} ./server
+
+      - name: Build ML service Docker image
+        run: docker build -t marketiq-ml:${{ github.sha }} ./ml-service
+
+      - name: Log images built
+        run: |
+          echo "✓ Server image: marketiq-server:${{ github.sha }}"
+          echo "✓ ML image: marketiq-ml:${{ github.sha }}"
+          echo "Ready for deployment to container registry"
