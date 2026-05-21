@@ -20,6 +20,14 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.get("/", (_req, res) => {
+  res.json({
+    message: "MarketIQ API is running",
+    health: "/health",
+    api: "/api",
+  });
+});
+
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", service: "server" });
 });
