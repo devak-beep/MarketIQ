@@ -1,0 +1,32 @@
+services:
+  - type: web_service
+    name: marketiq-api
+    env: node
+    plan: free
+    repo: https://github.com/devak-beep/MarketIQ
+    branch: main
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: DATABASE_URL
+        value: REPLACE_WITH_YOUR_NEON_URL
+      - key: JWT_SECRET
+        value: REPLACE_WITH_YOUR_JWT_SECRET
+      - key: NODE_ENV
+        value: production
+      - key: CORS_ORIGIN
+        value: https://your-app-url.com
+
+  - type: web_service
+    name: marketiq-ml
+    env: python
+    plan: free
+    repo: https://github.com/devak-beep/MarketIQ
+    branch: main
+    buildCommand: cd ml-service && pip install -r requirements.txt
+    startCommand: cd ml-service && python app.py
+    envVars:
+      - key: MODEL_PATH
+        value: ml-service/model.pkl
+      - key: SOME_OTHER_SECRET
+        value: REPLACE_IF_NEEDED
