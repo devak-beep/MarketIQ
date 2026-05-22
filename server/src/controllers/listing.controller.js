@@ -7,7 +7,22 @@ const listingSchema = z.object({
   description: z.string().min(10),
   condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]),
   askingPrice: z.coerce.number().positive(),
-  imageUrls: z.array(z.string().url()).default([]),
+  imageUrls: z.preprocess(
+    (value) => {
+      if (Array.isArray(value)) {
+        return value.filter(
+          (item) => typeof item === "string" && item.trim().length > 0,
+        );
+      }
+
+      if (typeof value === "string" && value.trim()) {
+        return [value.trim()];
+      }
+
+      return [];
+    },
+    z.array(z.string().min(1)).default([]),
+  ),
 });
 
 export async function createListing(req, res, next) {
@@ -77,12 +92,10 @@ export async function updateListing(req, res, next) {
 
     const payload = listingSchema.partial().safeParse(req.body);
     if (!payload.success) {
-      return res
-        .status(400)
-        .json({
-          message: "Validation failed",
-          errors: payload.error.flatten(),
-        });
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: payload.error.flatten(),
+      });
     }
 
     const updated = await prisma.$transaction(async (tx) => {

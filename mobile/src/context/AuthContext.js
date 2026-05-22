@@ -3,34 +3,68 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { api } from "../services/api";
+import { api, configureAuthClient } from "../services/api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
+  const [refreshToken, setRefreshToken] = useState(null);
   const [user, setUser] = useState(null);
+  const refreshTokenRef = useRef(null);
+
+  useEffect(() => {
+    refreshTokenRef.current = refreshToken;
+  }, [refreshToken]);
 
   useEffect(() => {
     let mounted = true;
+
+    configureAuthClient({
+      getRefreshToken: async () =>
+        refreshTokenRef.current || AsyncStorage.getItem("refreshToken"),
+      onTokenRefreshed: async (nextAccessToken, nextRefreshToken) => {
+        if (!mounted) return;
+        setToken(nextAccessToken);
+        if (nextRefreshToken) {
+          setRefreshToken(nextRefreshToken);
+          await AsyncStorage.setItem("refreshToken", nextRefreshToken);
+        }
+      },
+      onAuthFailure: async () => {
+        if (!mounted) return;
+        setToken(null);
+        refreshTokenRef.current = null;
+        setRefreshToken(null);
+        setUser(null);
+        await AsyncStorage.removeItem("refreshToken");
+      },
+    });
+
     (async () => {
       try {
         const stored = await AsyncStorage.getItem("refreshToken");
         if (!stored) return;
+        if (!mounted) return;
+        setRefreshToken(stored);
         const res = await api.refresh(stored);
         if (!mounted) return;
         setToken(res.accessToken);
-        await AsyncStorage.setItem("refreshToken", res.refreshToken);
+        setRefreshToken(res.refreshToken || stored);
+        await AsyncStorage.setItem("refreshToken", res.refreshToken || stored);
         const me = await api.me(res.accessToken);
         setUser(me.user || null);
       } catch {
         await AsyncStorage.removeItem("refreshToken");
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const value = useMemo(
@@ -41,19 +75,25 @@ export function AuthProvider({ children }) {
       signIn: async (accessToken, refreshToken, nextUser) => {
         setToken(accessToken);
         setUser(nextUser || null);
-        if (refreshToken) await AsyncStorage.setItem("refreshToken", refreshToken);
+        if (refreshToken) {
+          setRefreshToken(refreshToken);
+          await AsyncStorage.setItem("refreshToken", refreshToken);
+        }
       },
       signOut: async () => {
-        const stored = await AsyncStorage.getItem("refreshToken");
+        const stored =
+          refreshToken || (await AsyncStorage.getItem("refreshToken"));
         try {
           if (stored) await api.logout(stored);
         } catch (_) {}
         await AsyncStorage.removeItem("refreshToken");
         setToken(null);
+        refreshTokenRef.current = null;
+        setRefreshToken(null);
         setUser(null);
       },
     }),
-    [token, user],
+    [token, user, refreshToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

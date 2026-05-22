@@ -75,10 +75,15 @@ export default function PostItemScreen() {
       { mediaType: "photo", selectionLimit: 4, quality: 0.8 },
       (response) => {
         if (!response.didCancel && response.assets) {
-          setImageUrls((prev) => [
-            ...prev,
-            ...response.assets.map((a) => a.uri),
-          ]);
+          const pickedUrls = response.assets
+            .map((a) => a.uri)
+            .filter((uri) => typeof uri === "string" && uri.trim().length > 0);
+
+          if (pickedUrls.length === 0) {
+            return;
+          }
+
+          setImageUrls((prev) => [...prev, ...pickedUrls]);
         }
       },
     );

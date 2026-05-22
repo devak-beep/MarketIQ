@@ -1,7 +1,52 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 const API_BASE_URL =
   process.env.API_URL || "https://marketiq-9qlb.onrender.com/api";
 
-async function request(path, options = {}) {
+let authClient = {
+  getRefreshToken: async () => null,
+  onTokenRefreshed: null,
+  onAuthFailure: null,
+};
+
+export function configureAuthClient(nextClient = {}) {
+  authClient = {
+    ...authClient,
+    ...nextClient,
+  };
+}
+
+async function refreshAccessToken() {
+  const refreshToken = await authClient.getRefreshToken();
+  if (!refreshToken) return null;
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Request failed");
+  }
+
+  if (data?.refreshToken) {
+    await AsyncStorage.setItem("refreshToken", data.refreshToken);
+  }
+
+  if (data?.accessToken && authClient.onTokenRefreshed) {
+    authClient.onTokenRefreshed(data.accessToken, data.refreshToken || null);
+  }
+
+  return data?.accessToken || null;
+}
+
+async function request(path, options = {}, retryOnAuthFailure = true) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -12,6 +57,32 @@ async function request(path, options = {}) {
 
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
+
+  if (
+    response.status === 401 &&
+    retryOnAuthFailure &&
+    options.headers?.Authorization?.startsWith("Bearer ")
+  ) {
+    try {
+      const nextAccessToken = await refreshAccessToken();
+      if (nextAccessToken) {
+        const retryHeaders = {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${nextAccessToken}`,
+        };
+        return request(
+          path,
+          {
+            ...options,
+            headers: retryHeaders,
+          },
+          false,
+        );
+      }
+    } catch (error) {
+      if (authClient.onAuthFailure) authClient.onAuthFailure(error);
+    }
+  }
 
   if (!response.ok) {
     throw new Error(data?.message || "Request failed");
