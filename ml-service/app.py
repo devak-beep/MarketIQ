@@ -49,18 +49,29 @@ def predict_price():
     except (TypeError, ValueError):
         return jsonify({'message': 'description_length must be a number'}), 400
 
-    features = {
-        'category': str(payload['category']),
-        'condition': str(payload['condition']),
-        'description_length': description_length
-    }
+    category = str(payload['category']).strip().lower()
+    condition = str(payload['condition']).strip().upper()
 
     if model_bundle is None:
         baseline = round(25 + description_length * 0.4, 2)
         return jsonify({'predicted_price': baseline, 'model_loaded': False, 'currency': 'INR'})
 
-    prediction_input = pd.DataFrame([features])
-    prediction = model_bundle['model'].predict(prediction_input)[0]
+    if 'base_model' in model_bundle and 'condition_multipliers' in model_bundle:
+        prediction_input = pd.DataFrame([
+            {'category': category, 'description_length': description_length}
+        ])
+        baseline = float(model_bundle['base_model'].predict(prediction_input)[0])
+        multiplier = float(model_bundle['condition_multipliers'].get(condition, 1.0))
+        prediction = baseline * multiplier
+    else:
+        features = {
+            'category': category,
+            'condition': condition,
+            'description_length': description_length,
+        }
+        prediction_input = pd.DataFrame([features])
+        prediction = float(model_bundle['model'].predict(prediction_input)[0])
+
     return jsonify({'predicted_price': round(float(prediction), 2), 'model_loaded': True, 'currency': 'INR'})
 
 if __name__ == '__main__':
