@@ -27,6 +27,6 @@ services:
     startCommand: cd ml-service && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: MODEL_PATH
-        value: ml-service/model.pkl
+        value: model.pkl
       - key: SOME_OTHER_SECRET
         value: REPLACE_IF_NEEDED

@@ -5,7 +5,25 @@ import joblib
 import pandas as pd
 
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(APP_ROOT, os.environ.get('MODEL_PATH', 'model.pkl'))
+RAW_MODEL_PATH = os.environ.get('MODEL_PATH', 'model.pkl')
+
+def resolve_model_path(raw_path: str) -> str:
+    candidates = []
+    if os.path.isabs(raw_path):
+        candidates.append(raw_path)
+    else:
+        candidates.append(os.path.join(APP_ROOT, raw_path))
+        candidates.append(os.path.join(APP_ROOT, os.path.basename(raw_path)))
+        candidates.append(raw_path)
+
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return candidate
+
+    return candidates[0]
+
+
+MODEL_PATH = resolve_model_path(RAW_MODEL_PATH)
 
 app = Flask(__name__)
 CORS(app)

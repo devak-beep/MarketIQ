@@ -51,7 +51,8 @@ export default function PostItemScreen() {
           (item) => item.id === categoryId,
         );
         const result = await predictPrice({
-          category: selectedCategory?.name || categoryId,
+          category:
+            selectedCategory?.slug || selectedCategory?.name || categoryId,
           condition,
           description_length: description.length,
         });
@@ -207,7 +208,7 @@ export default function PostItemScreen() {
             {predicting
               ? "Calculating..."
               : suggestedPrice
-                ? `$${Number(suggestedPrice).toFixed(2)}`
+                ? `₹${Number(suggestedPrice).toFixed(2)}`
                 : "Select category and enter description"}
           </Text>
           {suggestedPrice ? (
