@@ -16,7 +16,7 @@ if os.path.exists(MODEL_PATH):
 
 @app.get('/health')
 def health():
-    return jsonify({'status': 'ok', 'service': 'ml-service'})
+    return jsonify({'status': 'ok', 'service': 'ml-service', 'currency': 'INR'})
 
 @app.post('/predict-price')
 def predict_price():
@@ -39,11 +39,11 @@ def predict_price():
 
     if model_bundle is None:
         baseline = round(25 + description_length * 0.4, 2)
-        return jsonify({'predicted_price': baseline, 'model_loaded': False})
+        return jsonify({'predicted_price': baseline, 'model_loaded': False, 'currency': 'INR'})
 
     prediction_input = pd.DataFrame([features])
     prediction = model_bundle['model'].predict(prediction_input)[0]
-    return jsonify({'predicted_price': round(float(prediction), 2), 'model_loaded': True})
+    return jsonify({'predicted_price': round(float(prediction), 2), 'model_loaded': True, 'currency': 'INR'})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', os.environ.get('FLASK_PORT', 5001)))

@@ -1,4 +1,4 @@
-const ML_BASE_URL = process.env.ML_URL || "http://10.0.2.2:5001";
+const ML_BASE_URL = process.env.ML_URL || "https://marketiq-abqg.onrender.com";
 
 export async function predictPrice(payload) {
   const response = await fetch(`${ML_BASE_URL}/predict-price`, {
@@ -14,5 +14,8 @@ export async function predictPrice(payload) {
     throw new Error(data?.message || "Prediction failed");
   }
 
-  return data;
+  return {
+    ...data,
+    currency: data?.currency || "INR",
+  };
 }
