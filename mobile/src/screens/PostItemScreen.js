@@ -73,7 +73,7 @@ export default function PostItemScreen() {
 
   function pickImages() {
     launchImageLibrary(
-      { mediaType: "photo", selectionLimit: 4, quality: 0.8 },
+      { mediaType: "photo", selectionLimit: 4, quality: 0.5 },
       async (response) => {
         if (response.didCancel || !response.assets?.length) return;
 
@@ -82,32 +82,31 @@ export default function PostItemScreen() {
           const uploadedUrls = [];
 
           for (const asset of response.assets) {
-            const mimeType = asset.type || "image/jpeg";
-
-            // Read local file as base64 via fetch
-            const fileResponse = await fetch(asset.uri);
-            const blob = await fileResponse.blob();
-            const base64 = await new Promise((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve(reader.result);
-              reader.onerror = reject;
-              reader.readAsDataURL(blob);
+            const formData = new FormData();
+            formData.append("file", {
+              uri: asset.uri,
+              type: asset.type || "image/jpeg",
+              name: asset.fileName || "photo.jpg",
             });
+            formData.append("upload_preset", "ml_default");
+            formData.append("folder", "marketiq");
 
             try {
-              const uploaded = await api.uploadImage(token, base64);
-              if (uploaded?.url) uploadedUrls.push(uploaded.url);
+              const res = await fetch(
+                "https://api.cloudinary.com/v1_1/dwyoyjqt8/image/upload",
+                { method: "POST", body: formData }
+              );
+              const data = await res.json();
+              if (data.secure_url) {
+                uploadedUrls.push(data.secure_url);
+              } else {
+                throw new Error(data.error?.message || "Upload failed");
+              }
             } catch (uploadErr) {
-              Alert.alert("Upload failed", uploadErr.message || "Could not upload photo.");
+              Alert.alert("Upload failed", uploadErr.message);
               setSubmitting(false);
               return;
             }
-          }
-
-          if (uploadedUrls.length === 0) {
-            Alert.alert("Upload failed", "No photos were uploaded.");
-            setSubmitting(false);
-            return;
           }
 
           setImageUrls((prev) => [...prev, ...uploadedUrls]);
