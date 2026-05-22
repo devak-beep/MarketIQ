@@ -2,11 +2,29 @@ import { z } from "zod";
 import { prisma } from "../utils/prisma.js";
 
 const listingSchema = z.object({
-  categoryId: z.string().min(1),
-  title: z.string().min(3),
-  description: z.string().min(10),
-  condition: z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]),
-  askingPrice: z.coerce.number().positive(),
+  categoryId: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(1),
+  ),
+  title: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(3),
+  ),
+  description: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().min(10),
+  ),
+  condition: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),
+    z.enum(["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"]),
+  ),
+  askingPrice: z.preprocess((value) => {
+    if (typeof value === "string") {
+      return value.replace(/[^0-9.-]/g, "").trim();
+    }
+
+    return value;
+  }, z.coerce.number().positive()),
   imageUrls: z.preprocess(
     (value) => {
       if (Array.isArray(value)) {

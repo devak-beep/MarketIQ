@@ -100,14 +100,22 @@ export default function PostItemScreen() {
       return;
     }
 
+    const normalizedPrice = Number(
+      String(askingPrice).replace(/[^0-9.-]/g, ""),
+    );
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice <= 0) {
+      Alert.alert("Validation", "Enter a valid asking price.");
+      return;
+    }
+
     setSubmitting(true);
     try {
       await api.createListing(token, {
-        categoryId,
-        title,
-        description,
+        categoryId: categoryId.trim(),
+        title: title.trim(),
+        description: description.trim(),
         condition,
-        askingPrice: Number(askingPrice),
+        askingPrice: normalizedPrice,
         imageUrls,
       });
       Alert.alert("Success", "Listing created successfully.");
@@ -119,7 +127,10 @@ export default function PostItemScreen() {
       setImageUrls([]);
       setSuggestedPrice(null);
     } catch (error) {
-      Alert.alert("Create listing failed", error.message);
+      const msg = error.message?.includes("Validation failed")
+        ? "Please check all fields:\n• Title (min 3 chars)\n• Description (required)\n• Category and price must be set"
+        : error.message;
+      Alert.alert("Create listing failed", msg);
     } finally {
       setSubmitting(false);
     }
