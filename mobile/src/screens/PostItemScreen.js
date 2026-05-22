@@ -199,11 +199,7 @@ export default function PostItemScreen() {
         askingPrice: validation.normalizedPrice,
         imageUrls,
       };
-      // DEBUG: show exact payload
-      Alert.alert("DEBUG payload", JSON.stringify(payload, null, 2));
-      return;
       await api.createListing(token, payload);
-      });
       Alert.alert("Success", "Listing created successfully.");
       setCategoryId("");
       setTitle("");
@@ -214,26 +210,7 @@ export default function PostItemScreen() {
       setSuggestedPrice(null);
       setFieldErrors({});
     } catch (error) {
-      const message = getFieldErrorMessage(error.details?.errors);
-      const backendFieldErrors =
-        error.details?.errors?.fieldErrors || error.details?.errors?.errors;
-      if (backendFieldErrors && Object.keys(backendFieldErrors).length > 0) {
-        const nextErrors = {};
-        for (const [field, value] of Object.entries(backendFieldErrors)) {
-          if (Array.isArray(value) && value.length > 0)
-            nextErrors[field] = value.join(", ");
-          else if (typeof value === "string" && value)
-            nextErrors[field] = value;
-        }
-        setFieldErrors((prev) => ({ ...prev, ...nextErrors }));
-
-        Alert.alert(
-          "Create listing failed",
-          message || error.message || "Validation failed",
-        );
-      } else {
-        Alert.alert("Create listing failed", error.message);
-      }
+      Alert.alert("Create listing failed", error.message);
     } finally {
       setSubmitting(false);
     }
