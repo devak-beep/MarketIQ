@@ -1,9 +1,3 @@
-const { getDefaultConfig } = require('expo/metro-config');
-const path = require('path');
+const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 
-const config = getDefaultConfig(__dirname);
-
-// Only watch the mobile directory, not the monorepo root
-config.watchFolders = [__dirname];
-
-module.exports = config;
+module.exports = mergeConfig(getDefaultConfig(__dirname), {});

@@ -1,0 +1,1 @@
+/home/hello/Documents/My projects /MarketIQ/mobile/android/app/build/intermediates/cxx/RelWithDebInfo/4y3t5z4g/obj/x86_64

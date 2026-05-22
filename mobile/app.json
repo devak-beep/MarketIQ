@@ -1,13 +1,4 @@
 {
-  "expo": {
-    "name": "MarketIQ",
-    "slug": "marketiq",
-    "scheme": "marketiq",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "platforms": ["ios", "android"],
-    "jsEngine": "hermes",
-    "plugins": ["expo-secure-store"],
-    "newArchEnabled": false
-  }
+  "name": "marketiq",
+  "displayName": "MarketIQ"
 }

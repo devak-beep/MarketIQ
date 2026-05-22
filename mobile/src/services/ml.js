@@ -1,4 +1,4 @@
-const ML_BASE_URL = process.env.EXPO_PUBLIC_ML_URL || "http://localhost:5001";
+const ML_BASE_URL = process.env.ML_URL || "http://10.0.2.2:5001";
 
 export async function predictPrice(payload) {
   const response = await fetch(`${ML_BASE_URL}/predict-price`, {

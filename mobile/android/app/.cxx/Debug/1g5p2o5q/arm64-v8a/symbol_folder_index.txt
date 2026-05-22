@@ -1,0 +1,1 @@
+/home/hello/Documents/My projects /MarketIQ/mobile/android/app/build/intermediates/cxx/Debug/1g5p2o5q/obj/arm64-v8a

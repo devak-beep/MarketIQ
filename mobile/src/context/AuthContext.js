@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "../services/api";
 
 const AuthContext = createContext(null);
@@ -15,25 +15,22 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // try to restore session via refresh token stored securely
     let mounted = true;
     (async () => {
       try {
-        const stored = await SecureStore.getItemAsync("refreshToken");
+        const stored = await AsyncStorage.getItem("refreshToken");
         if (!stored) return;
         const res = await api.refresh(stored);
         if (!mounted) return;
         setToken(res.accessToken);
-        await SecureStore.setItemAsync("refreshToken", res.refreshToken);
+        await AsyncStorage.setItem("refreshToken", res.refreshToken);
         const me = await api.me(res.accessToken);
         setUser(me.user || null);
-      } catch (err) {
-        await SecureStore.deleteItemAsync("refreshToken");
+      } catch {
+        await AsyncStorage.removeItem("refreshToken");
       }
     })();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   const value = useMemo(
@@ -44,17 +41,14 @@ export function AuthProvider({ children }) {
       signIn: async (accessToken, refreshToken, nextUser) => {
         setToken(accessToken);
         setUser(nextUser || null);
-        if (refreshToken)
-          await SecureStore.setItemAsync("refreshToken", refreshToken);
+        if (refreshToken) await AsyncStorage.setItem("refreshToken", refreshToken);
       },
       signOut: async () => {
-        const stored = await SecureStore.getItemAsync("refreshToken");
+        const stored = await AsyncStorage.getItem("refreshToken");
         try {
           if (stored) await api.logout(stored);
-        } catch (_) {
-          /* ignore */
-        }
-        await SecureStore.deleteItemAsync("refreshToken");
+        } catch (_) {}
+        await AsyncStorage.removeItem("refreshToken");
         setToken(null);
         setUser(null);
       },
@@ -67,8 +61,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
   return context;
 }

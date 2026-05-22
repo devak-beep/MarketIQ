@@ -14,6 +14,8 @@ export default function FormField({
     <>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
+        autoComplete="off"
+        importantForAutofill="no"
         {...props}
         multiline={Boolean(multiline)}
         editable={Boolean(editable)}
@@ -40,6 +42,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 12,
     backgroundColor: "#fff",
+    color: "#0f172a",
   },
   inputError: {
     borderColor: "#ef4444",

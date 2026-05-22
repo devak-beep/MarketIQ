@@ -9,7 +9,7 @@ import {
   Text,
   View,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
+import { launchImageLibrary } from "react-native-image-picker";
 import { api } from "../services/api";
 import { predictPrice } from "../services/ml";
 import { useAuth } from "../context/AuthContext";
@@ -69,20 +69,18 @@ export default function PostItemScreen() {
     return () => clearTimeout(timer);
   }, [categoryId, categories, condition, description, askingPrice]);
 
-  async function pickImages() {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsMultipleSelection: true,
-      quality: 0.8,
-      selectionLimit: 4,
-    });
-
-    if (!result.canceled) {
-      setImageUrls((prev) => [
-        ...prev,
-        ...result.assets.map((asset) => asset.uri),
-      ]);
-    }
+  function pickImages() {
+    launchImageLibrary(
+      { mediaType: "photo", selectionLimit: 4, quality: 0.8 },
+      (response) => {
+        if (!response.didCancel && response.assets) {
+          setImageUrls((prev) => [
+            ...prev,
+            ...response.assets.map((a) => a.uri),
+          ]);
+        }
+      },
+    );
   }
 
   async function submit() {
