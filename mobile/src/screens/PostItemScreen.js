@@ -32,11 +32,19 @@ export default function PostItemScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
 
+  const [categoriesError, setCategoriesError] = useState(false);
+
   useEffect(() => {
     api
       .categories()
-      .then((result) => setCategories(result.data || []))
-      .catch(() => setCategories([]));
+      .then((result) => {
+        const data = result.data || [];
+        setCategories(data);
+        // Auto-select first category so user doesn't miss it
+        if (data.length > 0 && !categoryId) setCategoryId(data[0].id);
+        if (data.length === 0) setCategoriesError(true);
+      })
+      .catch(() => setCategoriesError(true));
   }, []);
 
   useEffect(() => {
@@ -234,7 +242,10 @@ export default function PostItemScreen() {
           Get an instant suggested price before publishing.
         </Text>
 
-        <Text style={styles.label}>Category</Text>
+        <Text style={styles.label}>Category *</Text>
+        {categoriesError ? (
+          <Text style={styles.inlineError}>Failed to load categories. Check your connection.</Text>
+        ) : null}
         <View style={styles.chipsWrap}>
           {categories.map((item) => (
             <Pressable
