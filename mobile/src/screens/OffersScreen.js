@@ -79,7 +79,7 @@ export default function OffersScreen() {
           <View key={offer.id} style={styles.card}>
             <Text style={styles.cardTitle}>{offer.listing?.title}</Text>
             <Text style={styles.meta}>
-              ${Number(offer.offerPrice).toFixed(2)} • {offer.status}
+              ₹{Number(offer.offerPrice).toFixed(2)} • {offer.status}
             </Text>
             <Text style={styles.text}>
               {offer.message || "No message included."}

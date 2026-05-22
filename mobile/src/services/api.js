@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.API_URL || "http://10.0.2.2:4000/api";
+  process.env.API_URL || "https://marketiq-9qlb.onrender.com/api";
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {

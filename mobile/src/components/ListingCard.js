@@ -18,7 +18,7 @@ export default function ListingCard({ item, onPress }) {
         <Text style={styles.meta}>
           {item.category?.name || "Uncategorized"} • {item.condition}
         </Text>
-        <Text style={styles.price}>${Number(item.askingPrice).toFixed(2)}</Text>
+        <Text style={styles.price}>₹{Number(item.askingPrice).toFixed(2)}</Text>
       </View>
     </Pressable>
   );

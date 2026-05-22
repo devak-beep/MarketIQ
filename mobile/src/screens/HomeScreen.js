@@ -84,6 +84,7 @@ export default function HomeScreen({ navigation }) {
           value={query}
           onChangeText={setQuery}
           placeholder="Search listings"
+          placeholderTextColor="#94a3b8"
           style={styles.input}
         />
         <View style={styles.row}>
@@ -91,6 +92,7 @@ export default function HomeScreen({ navigation }) {
             value={categoryId}
             onChangeText={setCategoryId}
             placeholder="Category ID"
+            placeholderTextColor="#94a3b8"
             style={[styles.input, styles.half]}
           />
           <TextInput
@@ -98,6 +100,7 @@ export default function HomeScreen({ navigation }) {
             onChangeText={setMinPrice}
             placeholder="Min"
             keyboardType="numeric"
+            placeholderTextColor="#94a3b8"
             style={[styles.input, styles.half]}
           />
         </View>
@@ -106,6 +109,7 @@ export default function HomeScreen({ navigation }) {
           onChangeText={setMaxPrice}
           placeholder="Max price"
           keyboardType="numeric"
+          placeholderTextColor="#94a3b8"
           style={styles.input}
         />
       </View>
@@ -162,6 +166,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 10,
+    color: "#0f172a",
   },
   row: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },

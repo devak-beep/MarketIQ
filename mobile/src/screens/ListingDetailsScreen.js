@@ -85,7 +85,7 @@ export default function ListingDetailsScreen({ route }) {
 
         <Text style={styles.title}>{listing.title}</Text>
         <Text style={styles.price}>
-          ${Number(listing.askingPrice).toFixed(2)}
+          ₹{Number(listing.askingPrice).toFixed(2)}
         </Text>
         <Text style={styles.meta}>
           {listing.category?.name} • {listing.condition}
