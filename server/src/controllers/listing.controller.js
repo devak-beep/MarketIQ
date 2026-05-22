@@ -25,22 +25,25 @@ const listingSchema = z.object({
 
     return value;
   }, z.coerce.number().positive()),
-  imageUrls: z.preprocess(
-    (value) => {
-      if (Array.isArray(value)) {
-        return value.filter(
-          (item) => typeof item === "string" && item.trim().length > 0,
-        );
-      }
+  imageUrls: z
+    .preprocess(
+      (value) => {
+        if (Array.isArray(value)) {
+          return value.filter(
+            (item) => typeof item === "string" && item.trim().length > 0,
+          );
+        }
 
-      if (typeof value === "string" && value.trim()) {
-        return [value.trim()];
-      }
+        if (typeof value === "string" && value.trim()) {
+          return [value.trim()];
+        }
 
-      return [];
-    },
-    z.array(z.string().min(1)).default([]),
-  ),
+        return [];
+      },
+      z.array(z.string().min(1)).default([]).optional(),
+    )
+    .nullable()
+    .default([]),
 });
 
 export async function createListing(req, res, next) {

@@ -89,25 +89,43 @@ export default function PostItemScreen() {
           const uploadedUrls = [];
 
           for (const asset of response.assets) {
-            if (!asset.base64) continue;
+            if (!asset.base64) {
+              Alert.alert(
+                "Photo error",
+                "Failed to read photo. Try selecting it again.",
+              );
+              setSubmitting(false);
+              return;
+            }
 
             const mimeType = asset.type || "image/jpeg";
             const dataUri = `data:${mimeType};base64,${asset.base64}`;
-            const uploaded = await api.uploadImage(token, dataUri);
-            if (uploaded?.url) uploadedUrls.push(uploaded.url);
+
+            try {
+              const uploaded = await api.uploadImage(token, dataUri);
+              if (uploaded?.url) uploadedUrls.push(uploaded.url);
+            } catch (uploadErr) {
+              Alert.alert(
+                "Upload failed",
+                uploadErr.message || "Could not upload photo. Try again.",
+              );
+              setSubmitting(false);
+              return;
+            }
           }
 
           if (uploadedUrls.length === 0) {
             Alert.alert(
               "Upload failed",
-              "The selected photo could not be uploaded. Try another image.",
+              "No photos were uploaded. Try selecting images again.",
             );
+            setSubmitting(false);
             return;
           }
 
           setImageUrls((prev) => [...prev, ...uploadedUrls]);
         } catch (error) {
-          Alert.alert("Upload failed", error.message);
+          Alert.alert("Upload failed", error.message || "Unknown error");
         } finally {
           setSubmitting(false);
         }

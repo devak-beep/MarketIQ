@@ -87,7 +87,9 @@ async function request(path, options = {}, retryOnAuthFailure = true) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    const error = new Error(data?.message || "Request failed");
+    error.details = data;
+    throw error;
   }
 
   return data;
