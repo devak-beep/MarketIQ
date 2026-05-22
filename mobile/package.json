@@ -4,7 +4,7 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "android": "react-native run-android",
+    "logs": "adb logcat | grep -E 'ReactNativeJS|AndroidRuntime'",
     "start": "react-native start",
     "build:android": "cd android && ./gradlew assembleRelease"
   },

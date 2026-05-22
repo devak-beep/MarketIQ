@@ -73,52 +73,39 @@ export default function PostItemScreen() {
 
   function pickImages() {
     launchImageLibrary(
-      {
-        mediaType: "photo",
-        selectionLimit: 4,
-        quality: 0.8,
-        includeBase64: true,
-      },
+      { mediaType: "photo", selectionLimit: 4, quality: 0.8 },
       async (response) => {
-        if (response.didCancel || !response.assets?.length) {
-          return;
-        }
+        if (response.didCancel || !response.assets?.length) return;
 
         setSubmitting(true);
         try {
           const uploadedUrls = [];
 
           for (const asset of response.assets) {
-            if (!asset.base64) {
-              Alert.alert(
-                "Photo error",
-                "Failed to read photo. Try selecting it again.",
-              );
-              setSubmitting(false);
-              return;
-            }
-
             const mimeType = asset.type || "image/jpeg";
-            const dataUri = `data:${mimeType};base64,${asset.base64}`;
+
+            // Read local file as base64 via fetch
+            const fileResponse = await fetch(asset.uri);
+            const blob = await fileResponse.blob();
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
 
             try {
-              const uploaded = await api.uploadImage(token, dataUri);
+              const uploaded = await api.uploadImage(token, base64);
               if (uploaded?.url) uploadedUrls.push(uploaded.url);
             } catch (uploadErr) {
-              Alert.alert(
-                "Upload failed",
-                uploadErr.message || "Could not upload photo. Try again.",
-              );
+              Alert.alert("Upload failed", uploadErr.message || "Could not upload photo.");
               setSubmitting(false);
               return;
             }
           }
 
           if (uploadedUrls.length === 0) {
-            Alert.alert(
-              "Upload failed",
-              "No photos were uploaded. Try selecting images again.",
-            );
+            Alert.alert("Upload failed", "No photos were uploaded.");
             setSubmitting(false);
             return;
           }
