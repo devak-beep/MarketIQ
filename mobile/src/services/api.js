@@ -126,6 +126,12 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ image }),
     }),
+  uploadImage: (token, dataUri) =>
+    request("/upload/image", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ image: dataUri }),
+    }),
   createListing: (token, payload) =>
     request("/listings", {
       method: "POST",
