@@ -12,7 +12,7 @@ const listingSchema = z.object({
   ),
   description: z.preprocess(
     (value) => (typeof value === "string" ? value.trim() : value),
-    z.string().min(10),
+    z.string().min(3),
   ),
   condition: z.preprocess(
     (value) => (typeof value === "string" ? value.trim().toUpperCase() : value),

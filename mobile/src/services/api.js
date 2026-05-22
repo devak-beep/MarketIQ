@@ -32,7 +32,9 @@ async function refreshAccessToken() {
   const data = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
-    throw new Error(data?.message || "Request failed");
+    const error = new Error(data?.message || "Request failed");
+    error.details = data;
+    throw error;
   }
 
   if (data?.refreshToken) {
@@ -116,6 +118,12 @@ export const api = {
     return request(`/listings${params ? `?${params}` : ""}`);
   },
   listing: (id) => request(`/listings/${id}`),
+  uploadImage: (token, image) =>
+    request("/upload/image", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ image }),
+    }),
   createListing: (token, payload) =>
     request("/listings", {
       method: "POST",
