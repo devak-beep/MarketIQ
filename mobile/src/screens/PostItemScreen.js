@@ -191,13 +191,18 @@ export default function PostItemScreen() {
 
     setSubmitting(true);
     try {
-      await api.createListing(token, {
+      const payload = {
         categoryId: categoryId.trim(),
         title: title.trim(),
         description: description.trim(),
         condition,
         askingPrice: validation.normalizedPrice,
         imageUrls,
+      };
+      // DEBUG: show exact payload
+      Alert.alert("DEBUG payload", JSON.stringify(payload, null, 2));
+      return;
+      await api.createListing(token, payload);
       });
       Alert.alert("Success", "Listing created successfully.");
       setCategoryId("");
