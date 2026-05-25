@@ -104,14 +104,17 @@ export default function ListingDetailsScreen({ route }) {
             onChangeText={setOfferPrice}
             keyboardType="numeric"
             placeholder="Offer amount"
+            placeholderTextColor="#94a3b8"
             style={styles.input}
           />
           <TextInput
             value={message}
             onChangeText={setMessage}
             placeholder="Optional message"
+            placeholderTextColor="#94a3b8"
             style={styles.input}
             multiline
+            textAlignVertical="top"
           />
           <PrimaryButton
             label="Send Offer"
@@ -155,6 +158,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: "#fff",
     marginBottom: 10,
+    color: "#0f172a",
   },
   empty: { textAlign: "center", marginTop: 40, color: "#64748b" },
 });
