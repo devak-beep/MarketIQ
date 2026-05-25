@@ -116,7 +116,12 @@ export const api = {
     request("/auth/me", { headers: { Authorization: `Bearer ${token}` } }),
   categories: () => request("/categories"),
   listings: (query = {}) => {
-    const params = new URLSearchParams(query).toString();
+    const filteredQuery = Object.fromEntries(
+      Object.entries(query).filter(
+        ([, value]) => value !== undefined && value !== null && value !== "",
+      ),
+    );
+    const params = new URLSearchParams(filteredQuery).toString();
     return request(`/listings${params ? `?${params}` : ""}`);
   },
   listing: (id) => request(`/listings/${id}`),

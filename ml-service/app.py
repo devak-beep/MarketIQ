@@ -39,24 +39,38 @@ def health():
 @app.post('/predict-price')
 def predict_price():
     payload = request.get_json(silent=True) or {}
-    required = ['category', 'condition', 'description_length']
+    required = ['category', 'condition']
     missing = [field for field in required if field not in payload]
     if missing:
         return jsonify({'message': 'Missing required fields', 'missing': missing}), 400
 
+    title = str(payload.get('title', '')).strip()
+    description = str(payload.get('description', '')).strip()
     try:
-        description_length = int(payload['description_length'])
+        description_length = int(
+            payload.get('description_length') or len(description)
+        )
     except (TypeError, ValueError):
         return jsonify({'message': 'description_length must be a number'}), 400
 
     category = str(payload['category']).strip().lower()
     condition = str(payload['condition']).strip().upper()
+    text = f'{title} {description}'.strip().lower()
 
     if model_bundle is None:
         baseline = round(25 + description_length * 0.4, 2)
         return jsonify({'predicted_price': baseline, 'model_loaded': False, 'currency': 'INR'})
 
-    if 'base_model' in model_bundle and 'condition_multipliers' in model_bundle:
+    if model_bundle.get('feature_columns') == ['category', 'condition', 'text']:
+        prediction_input = pd.DataFrame([
+            {
+                'category': category,
+                'condition': condition,
+                'text': text,
+            }
+        ])
+        prediction = float(model_bundle['model'].predict(prediction_input)[0])
+    elif 'base_model' in model_bundle and 'condition_multipliers' in model_bundle:
         prediction_input = pd.DataFrame([
             {'category': category, 'description_length': description_length}
         ])

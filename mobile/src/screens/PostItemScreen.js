@@ -63,6 +63,8 @@ export default function PostItemScreen() {
           category:
             selectedCategory?.slug || selectedCategory?.name || categoryId,
           condition,
+          title,
+          description,
           description_length: description.length,
         });
         setSuggestedPrice(result.predicted_price);
@@ -77,7 +79,7 @@ export default function PostItemScreen() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [categoryId, categories, condition, description, askingPrice]);
+  }, [categoryId, categories, condition, description, title, askingPrice]);
 
   function pickImages() {
     launchImageLibrary(
@@ -210,7 +212,15 @@ export default function PostItemScreen() {
       setSuggestedPrice(null);
       setFieldErrors({});
     } catch (error) {
-      Alert.alert("Create listing failed", error.message);
+      console.error("Create listing failed", {
+        message: error.message,
+        details: error.details,
+      });
+      const details = getFieldErrorMessage(error.details);
+      Alert.alert(
+        "Create listing failed",
+        details || error.message || "Request failed",
+      );
     } finally {
       setSubmitting(false);
     }

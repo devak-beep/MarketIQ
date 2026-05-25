@@ -31,6 +31,9 @@ function HomeStack() {
 }
 
 function Tabs() {
+  const { user } = useAuth();
+  const isSeller = user?.role === "SELLER";
+
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
       <Tab.Screen
@@ -43,11 +46,13 @@ function Tabs() {
         component={OffersScreen}
         options={{ tabBarIcon: () => <Text>💬</Text> }}
       />
-      <Tab.Screen
-        name="PostItem"
-        component={PostItemScreen}
-        options={{ tabBarLabel: "Sell", tabBarIcon: () => <Text>➕</Text> }}
-      />
+      {isSeller ? (
+        <Tab.Screen
+          name="PostItem"
+          component={PostItemScreen}
+          options={{ tabBarLabel: "Sell", tabBarIcon: () => <Text>➕</Text> }}
+        />
+      ) : null}
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
