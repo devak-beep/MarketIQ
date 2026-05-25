@@ -19,7 +19,7 @@ import PrimaryButton from "../components/PrimaryButton";
 const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 
 export default function PostItemScreen() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
@@ -191,6 +191,18 @@ export default function PostItemScreen() {
       return;
     }
 
+    if (user?.role !== "SELLER") {
+      console.error("Create listing blocked for non-seller", {
+        role: user?.role,
+        userId: user?.id,
+      });
+      Alert.alert(
+        "Seller account required",
+        "Only seller accounts can publish listings.",
+      );
+      return;
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -224,6 +236,20 @@ export default function PostItemScreen() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (user?.role && user.role !== "SELLER") {
+    return (
+      <SafeAreaView style={styles.screen}>
+        <View style={styles.blocked}>
+          <Text style={styles.title}>Seller account required</Text>
+          <Text style={styles.subtitle}>
+            Buyers can browse listings and make offers. Use a seller account to
+            publish items.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -407,4 +433,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   suggested: { fontSize: 24, fontWeight: "900", color: "#1d4ed8" },
+  blocked: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 20,
+    gap: 8,
+  },
 });

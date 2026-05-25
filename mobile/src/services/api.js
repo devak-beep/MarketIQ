@@ -49,6 +49,7 @@ async function refreshAccessToken() {
 }
 
 async function request(path, options = {}, retryOnAuthFailure = true) {
+  const method = options.method || "GET";
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
@@ -87,8 +88,16 @@ async function request(path, options = {}, retryOnAuthFailure = true) {
   }
 
   if (!response.ok) {
+    console.error("API request failed", {
+      method,
+      path,
+      status: response.status,
+      response: data,
+      requestBody: options.body,
+    });
     const error = new Error(data?.message || "Request failed");
     error.details = data;
+    error.status = response.status;
     throw error;
   }
 
@@ -138,11 +147,14 @@ export const api = {
       body: JSON.stringify({ image: dataUri }),
     }),
   createListing: (token, payload) =>
-    request("/listings", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: JSON.stringify(payload),
-    }),
+    {
+      console.log("Create listing request", payload);
+      return request("/listings", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload),
+      });
+    },
   updateListing: (token, id, payload) =>
     request(`/listings/${id}`, {
       method: "PUT",

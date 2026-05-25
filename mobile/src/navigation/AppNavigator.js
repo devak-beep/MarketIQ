@@ -33,6 +33,7 @@ function HomeStack() {
 function Tabs() {
   const { user } = useAuth();
   const isSeller = user?.role === "SELLER";
+  console.log("Current user role", user?.role || "unknown");
 
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
