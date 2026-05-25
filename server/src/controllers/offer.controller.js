@@ -26,6 +26,11 @@ export async function createOffer(req, res, next) {
     if (!listing) {
       return res.status(404).json({ message: "Listing not found" });
     }
+    if (!listing.isActive) {
+      return res
+        .status(409)
+        .json({ message: "Listing is no longer available for offers" });
+    }
     if (listing.sellerId === req.user.id) {
       return res
         .status(400)
@@ -115,9 +120,55 @@ export async function updateOfferStatus(req, res, next) {
       });
     }
 
-    const updated = await prisma.offer.update({
-      where: { id: req.params.id },
-      data: { status: parsed.data.status },
+    const updated = await prisma.$transaction(async (tx) => {
+      if (parsed.data.status === "ACCEPTED") {
+        const alreadyAccepted = await tx.offer.findFirst({
+          where: {
+            listingId: offer.listingId,
+            status: "ACCEPTED",
+            id: { not: offer.id },
+          },
+          select: { id: true },
+        });
+
+        if (alreadyAccepted) {
+          throw Object.assign(
+            new Error(
+              "Another offer has already been accepted for this listing",
+            ),
+            {
+              statusCode: 409,
+            },
+          );
+        }
+
+        const accepted = await tx.offer.update({
+          where: { id: req.params.id },
+          data: { status: "ACCEPTED" },
+        });
+
+        // Mark item as sold and close out remaining pending offers.
+        await tx.listing.update({
+          where: { id: offer.listingId },
+          data: { isActive: false },
+        });
+
+        await tx.offer.updateMany({
+          where: {
+            listingId: offer.listingId,
+            status: "PENDING",
+            id: { not: offer.id },
+          },
+          data: { status: "REJECTED" },
+        });
+
+        return accepted;
+      }
+
+      return tx.offer.update({
+        where: { id: req.params.id },
+        data: { status: "REJECTED" },
+      });
     });
 
     res.json({ data: updated });

@@ -11,6 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import ListingCard from "../components/ListingCard";
 import { api } from "../services/api";
 
@@ -79,9 +80,13 @@ export default function HomeScreen({ navigation }) {
           search: query.trim() || undefined,
           categoryId: categoryId || undefined,
           minPrice:
-            priceValidation.min !== null ? String(priceValidation.min) : undefined,
+            priceValidation.min !== null
+              ? String(priceValidation.min)
+              : undefined,
           maxPrice:
-            priceValidation.max !== null ? String(priceValidation.max) : undefined,
+            priceValidation.max !== null
+              ? String(priceValidation.max)
+              : undefined,
         });
 
         const data = result.data || [];
@@ -117,6 +122,12 @@ export default function HomeScreen({ navigation }) {
 
     return () => clearTimeout(timer);
   }, [fetchListings]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchListings(1, true);
+    }, [fetchListings]),
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

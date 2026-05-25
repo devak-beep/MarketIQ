@@ -27,6 +27,11 @@ enum OfferStatus {
   REJECTED
 }
 
+enum ListingStatus {
+  AVAILABLE
+  SOLD
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String

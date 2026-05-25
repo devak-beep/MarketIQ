@@ -273,3 +273,20 @@ export async function browseListings(req, res, next) {
     next(error);
   }
 }
+
+export async function listMyListings(req, res, next) {
+  try {
+    const items = await prisma.listing.findMany({
+      where: { sellerId: req.user.id },
+      include: {
+        category: true,
+        images: { orderBy: { sortOrder: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ data: items });
+  } catch (error) {
+    next(error);
+  }
+}

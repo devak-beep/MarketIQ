@@ -5,12 +5,14 @@ import {
   createListing,
   deleteListing,
   getListing,
+  listMyListings,
   updateListing,
 } from "../controllers/listing.controller.js";
 
 const router = Router();
 
 router.get("/", browseListings);
+router.get("/mine", requireAuth, listMyListings);
 router.get("/:id", getListing);
 router.post("/", requireAuth, requireRole("SELLER"), createListing);
 router.put("/:id", requireAuth, updateListing);

@@ -133,6 +133,10 @@ export const api = {
     const params = new URLSearchParams(filteredQuery).toString();
     return request(`/listings${params ? `?${params}` : ""}`);
   },
+  myListings: (token) =>
+    request("/listings/mine", {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
   listing: (id) => request(`/listings/${id}`),
   uploadImage: (token, image) =>
     request("/upload/image", {
@@ -146,15 +150,14 @@ export const api = {
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ image: dataUri }),
     }),
-  createListing: (token, payload) =>
-    {
-      console.log("Create listing request", payload);
-      return request("/listings", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload),
-      });
-    },
+  createListing: (token, payload) => {
+    console.log("Create listing request", payload);
+    return request("/listings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify(payload),
+    });
+  },
   updateListing: (token, id, payload) =>
     request(`/listings/${id}`, {
       method: "PUT",
