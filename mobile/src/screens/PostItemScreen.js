@@ -139,17 +139,24 @@ export default function PostItemScreen() {
   }
 
   function getFieldErrorMessage(errors) {
+    const formErrors = Array.isArray(errors?.formErrors)
+      ? errors.formErrors.filter(Boolean)
+      : [];
     const fieldErrors = errors?.fieldErrors || errors?.errors || {};
-    const parts = Object.entries(fieldErrors)
+    const parts = Object.entries(fieldErrors || {})
       .map(([field, value]) => {
         if (Array.isArray(value))
           return [field, value.filter(Boolean).join(", ")];
         if (typeof value === "string") return [field, value];
+        if (value && typeof value === "object") return [field, "Invalid value"];
         return [field, "Invalid value"];
       })
-      .filter(([, message]) => message);
+      .filter(([, message]) => message && message !== "Invalid value");
 
-    return parts.map(([field, message]) => `${field}: ${message}`).join("\n");
+    return [
+      ...formErrors,
+      ...parts.map(([field, message]) => `${field}: ${message}`),
+    ].join("\n");
   }
 
   function validateLocal() {

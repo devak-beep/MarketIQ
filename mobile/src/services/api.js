@@ -51,11 +51,11 @@ async function refreshAccessToken() {
 async function request(path, options = {}, retryOnAuthFailure = true) {
   const method = options.method || "GET";
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
     headers: {
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
-    ...options,
   });
 
   const text = await response.text();
