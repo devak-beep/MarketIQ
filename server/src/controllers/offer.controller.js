@@ -109,6 +109,11 @@ export async function updateOfferStatus(req, res, next) {
     if (offer.listing.sellerId !== req.user.id) {
       return res.status(403).json({ message: "You do not own this listing" });
     }
+    if (offer.status !== "PENDING") {
+      return res.status(409).json({
+        message: `Offer is already ${offer.status.toLowerCase()} and cannot be changed`,
+      });
+    }
 
     const updated = await prisma.offer.update({
       where: { id: req.params.id },

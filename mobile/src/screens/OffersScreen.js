@@ -45,13 +45,28 @@ export default function OffersScreen() {
     }, [load]),
   );
 
-  async function updateOffer(id, status) {
-    try {
-      await api.updateOfferStatus(token, id, status);
-      load();
-    } catch (error) {
-      Alert.alert("Update failed", error.message);
-    }
+  function confirmUpdate(id, status) {
+    const label = status === "ACCEPTED" ? "Accept" : "Reject";
+    const message =
+      status === "ACCEPTED"
+        ? "Accept this offer? This action is permanent and cannot be undone."
+        : "Reject this offer? This action is permanent and cannot be undone.";
+
+    Alert.alert(`${label} Offer`, message, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: label,
+        style: status === "ACCEPTED" ? "default" : "destructive",
+        onPress: async () => {
+          try {
+            await api.updateOfferStatus(token, id, status);
+            load();
+          } catch (error) {
+            Alert.alert("Update failed", error.message);
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -79,23 +94,32 @@ export default function OffersScreen() {
           <View key={offer.id} style={styles.card}>
             <Text style={styles.cardTitle}>{offer.listing?.title}</Text>
             <Text style={styles.meta}>
-              ₹{Number(offer.offerPrice).toFixed(2)} • {offer.status}
+              ₹{Number(offer.offerPrice).toFixed(2)}
+            </Text>
+            <Text
+              style={[
+                styles.status,
+                offer.status === "ACCEPTED" && styles.statusAccepted,
+                offer.status === "REJECTED" && styles.statusRejected,
+              ]}
+            >
+              {offer.status}
             </Text>
             <Text style={styles.text}>
               {offer.message || "No message included."}
             </Text>
-            {mode === "received" ? (
+            {mode === "received" && offer.status === "PENDING" ? (
               <View style={styles.row}>
                 <PrimaryButton
                   label="Accept"
                   style={styles.segment}
-                  onPress={() => updateOffer(offer.id, "ACCEPTED")}
+                  onPress={() => confirmUpdate(offer.id, "ACCEPTED")}
                 />
                 <PrimaryButton
                   label="Reject"
                   variant="secondary"
                   style={styles.segment}
-                  onPress={() => updateOffer(offer.id, "REJECTED")}
+                  onPress={() => confirmUpdate(offer.id, "REJECTED")}
                 />
               </View>
             ) : null}
@@ -127,4 +151,17 @@ const styles = StyleSheet.create({
   meta: { color: "#2563eb", fontWeight: "700" },
   text: { color: "#475569" },
   empty: { textAlign: "center", color: "#64748b", marginTop: 24 },
+  status: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 99,
+    fontSize: 12,
+    fontWeight: "700",
+    overflow: "hidden",
+    backgroundColor: "#e2e8f0",
+    color: "#475569",
+  },
+  statusAccepted: { backgroundColor: "#dcfce7", color: "#16a34a" },
+  statusRejected: { backgroundColor: "#fee2e2", color: "#dc2626" },
 });
