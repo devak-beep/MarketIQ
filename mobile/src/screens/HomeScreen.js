@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Pressable,
   RefreshControl,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -14,25 +16,72 @@ import { api } from "../services/api";
 
 export default function HomeScreen({ navigation }) {
   const [items, setItems] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
+  const [priceError, setPriceError] = useState("");
+  const [categoriesError, setCategoriesError] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  function parsePrice(value) {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith("-")) return -1;
+    const normalized = trimmed.replace(/,/g, "");
+    if (!/^\d+(\.\d{0,2})?$/.test(normalized)) return NaN;
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : NaN;
+  }
+
+  function validatePriceRange() {
+    const min = parsePrice(minPrice);
+    const max = parsePrice(maxPrice);
+
+    if (Number.isNaN(min) || Number.isNaN(max)) {
+      return { ok: false, message: "Enter valid numbers for price filters." };
+    }
+
+    if ((min !== null && min < 0) || (max !== null && max < 0)) {
+      return { ok: false, message: "Price cannot be negative." };
+    }
+
+    if (min !== null && max !== null && min > max) {
+      return {
+        ok: false,
+        message: "Minimum price must be less than or equal to maximum price.",
+      };
+    }
+
+    return { ok: true, min, max, message: "" };
+  }
+
   const fetchListings = useCallback(
     async (nextPage = 1, replace = true) => {
+      const priceValidation = validatePriceRange();
+      setPriceError(priceValidation.message);
+      if (!priceValidation.ok) {
+        setItems([]);
+        setHasMore(false);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       try {
         const result = await api.listings({
           page: String(nextPage),
           limit: "10",
-          search: query || undefined,
+          search: query.trim() || undefined,
           categoryId: categoryId || undefined,
-          minPrice: minPrice || undefined,
-          maxPrice: maxPrice || undefined,
+          minPrice:
+            priceValidation.min !== null ? String(priceValidation.min) : undefined,
+          maxPrice:
+            priceValidation.max !== null ? String(priceValidation.max) : undefined,
         });
 
         const data = result.data || [];
@@ -49,6 +98,16 @@ export default function HomeScreen({ navigation }) {
     },
     [query, categoryId, minPrice, maxPrice],
   );
+
+  useEffect(() => {
+    api
+      .categories()
+      .then((result) => {
+        setCategories(result.data || []);
+        setCategoriesError("");
+      })
+      .catch(() => setCategoriesError("Failed to load categories."));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -87,31 +146,64 @@ export default function HomeScreen({ navigation }) {
           placeholderTextColor="#94a3b8"
           style={styles.input}
         />
+        <Text style={styles.filterLabel}>Category</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryRow}
+        >
+          <Pressable
+            onPress={() => setCategoryId("")}
+            style={[styles.chip, !categoryId && styles.chipActive]}
+          >
+            <Text
+              style={[styles.chipText, !categoryId && styles.chipTextActive]}
+            >
+              All
+            </Text>
+          </Pressable>
+          {categories.map((category) => (
+            <Pressable
+              key={category.id}
+              onPress={() => setCategoryId(category.id)}
+              style={[
+                styles.chip,
+                categoryId === category.id && styles.chipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  categoryId === category.id && styles.chipTextActive,
+                ]}
+              >
+                {category.name}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+        {categoriesError ? (
+          <Text style={styles.error}>{categoriesError}</Text>
+        ) : null}
         <View style={styles.row}>
           <TextInput
-            value={categoryId}
-            onChangeText={setCategoryId}
-            placeholder="Category ID"
+            value={minPrice}
+            onChangeText={setMinPrice}
+            placeholder="Min price"
+            keyboardType="numeric"
             placeholderTextColor="#94a3b8"
             style={[styles.input, styles.half]}
           />
           <TextInput
-            value={minPrice}
-            onChangeText={setMinPrice}
-            placeholder="Min"
+            value={maxPrice}
+            onChangeText={setMaxPrice}
+            placeholder="Max price"
             keyboardType="numeric"
             placeholderTextColor="#94a3b8"
             style={[styles.input, styles.half]}
           />
         </View>
-        <TextInput
-          value={maxPrice}
-          onChangeText={setMaxPrice}
-          placeholder="Max price"
-          keyboardType="numeric"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
-        />
+        {priceError ? <Text style={styles.error}>{priceError}</Text> : null}
       </View>
 
       {loading ? (
@@ -158,6 +250,11 @@ const styles = StyleSheet.create({
   title: { fontSize: 28, fontWeight: "900", color: "#0f172a" },
   subtitle: { color: "#475569", marginTop: 4 },
   filters: { paddingHorizontal: 16, paddingBottom: 6 },
+  filterLabel: {
+    color: "#0f172a",
+    fontWeight: "800",
+    marginBottom: 8,
+  },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,
@@ -170,5 +267,32 @@ const styles = StyleSheet.create({
   },
   row: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },
+  categoryRow: {
+    gap: 10,
+    paddingBottom: 12,
+  },
+  chip: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#e2e8f0",
+  },
+  chipActive: {
+    backgroundColor: "#2563eb",
+  },
+  chipText: {
+    color: "#0f172a",
+    fontWeight: "800",
+  },
+  chipTextActive: {
+    color: "#fff",
+  },
+  error: {
+    color: "#ef4444",
+    fontWeight: "700",
+    marginBottom: 10,
+  },
   empty: { textAlign: "center", marginTop: 30, color: "#64748b" },
 });
