@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -12,20 +13,31 @@ import {
 import PrimaryButton from "../components/PrimaryButton";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useAppAlert } from "../components/AppAlert";
 
 export default function ListingDetailsScreen({ route }) {
   const { token } = useAuth();
+  const alert = useAppAlert();
   const initialListing = route.params?.listing || null;
   const [listing] = useState(initialListing);
   const [offerPrice, setOfferPrice] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [existingOffer, setExistingOffer] = useState(null);
 
   const images = listing?.images || [];
 
+  useEffect(() => {
+    if (!token || !listing) return;
+    api.sentOffers(token).then((res) => {
+      const match = (res.data || []).find((o) => o.listingId === listing.id);
+      setExistingOffer(match || null);
+    }).catch(() => {});
+  }, [token, listing]);
+
   async function submitOffer() {
     if (!token) {
-      Alert.alert(
+      alert(
         "Sign in required",
         "Please sign in before sending an offer.",
       );
@@ -33,22 +45,23 @@ export default function ListingDetailsScreen({ route }) {
     }
 
     if (!offerPrice || Number(offerPrice) <= 0) {
-      Alert.alert("Invalid offer", "Enter a valid offer amount.");
+      alert("Invalid offer", "Enter a valid offer amount.");
       return;
     }
 
     setLoading(true);
     try {
-      await api.createOffer(token, {
+      const created = await api.createOffer(token, {
         listingId: listing.id,
         offerPrice: Number(offerPrice),
         message,
       });
-      Alert.alert("Success", "Offer sent to seller.");
+      setExistingOffer(created.data);
+      alert("Success", "Offer sent to seller.");
       setOfferPrice("");
       setMessage("");
     } catch (error) {
-      Alert.alert("Offer failed", error.message);
+      alert("Offer failed", error.message);
     } finally {
       setLoading(false);
     }
@@ -64,7 +77,14 @@ export default function ListingDetailsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -99,30 +119,54 @@ export default function ListingDetailsScreen({ route }) {
 
         <View style={styles.offerCard}>
           <Text style={styles.label}>Make an Offer</Text>
-          <TextInput
-            value={offerPrice}
-            onChangeText={setOfferPrice}
-            keyboardType="numeric"
-            placeholder="Offer amount"
-            placeholderTextColor="#94a3b8"
-            style={styles.input}
-          />
-          <TextInput
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Optional message"
-            placeholderTextColor="#94a3b8"
-            style={styles.input}
-            multiline
-            textAlignVertical="top"
-          />
-          <PrimaryButton
-            label="Send Offer"
-            onPress={submitOffer}
-            loading={loading}
-          />
+
+          {existingOffer?.status === "PENDING" && (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusPending}>⏳ Offer pending — ₹{Number(existingOffer.offerPrice).toFixed(2)}</Text>
+            </View>
+          )}
+
+          {existingOffer?.status === "ACCEPTED" && (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusAccepted}>✅ Offer accepted — ₹{Number(existingOffer.offerPrice).toFixed(2)}</Text>
+            </View>
+          )}
+
+          {existingOffer?.status === "REJECTED" && (
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusRejected}>❌ Previous offer rejected — you can make a new offer</Text>
+            </View>
+          )}
+
+          {existingOffer?.status !== "PENDING" && existingOffer?.status !== "ACCEPTED" && (
+            <>
+              <TextInput
+                value={offerPrice}
+                onChangeText={setOfferPrice}
+                keyboardType="numeric"
+                placeholder="Offer amount"
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+              />
+              <TextInput
+                value={message}
+                onChangeText={setMessage}
+                placeholder="Optional message"
+                placeholderTextColor="#94a3b8"
+                style={styles.input}
+                multiline
+                textAlignVertical="top"
+              />
+              <PrimaryButton
+                label="Send Offer"
+                onPress={submitOffer}
+                loading={loading}
+              />
+            </>
+          )}
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -161,4 +205,13 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
   empty: { textAlign: "center", marginTop: 40, color: "#64748b" },
+  statusBadge: {
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: "#f8fafc",
+  },
+  statusPending: { fontWeight: "700", color: "#d97706" },
+  statusAccepted: { fontWeight: "700", color: "#16a34a" },
+  statusRejected: { fontWeight: "700", color: "#ef4444" },
 });

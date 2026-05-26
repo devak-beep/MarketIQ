@@ -210,23 +210,18 @@ export async function browseListings(req, res, next) {
     const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 100);
     const skip = (page - 1) * limit;
 
+    const minPrice = req.query.minPrice !== undefined ? Number(req.query.minPrice) : null;
+    const maxPrice = req.query.maxPrice !== undefined ? Number(req.query.maxPrice) : null;
+    const priceFilter = {};
+    if (minPrice !== null && Number.isFinite(minPrice)) priceFilter.gte = minPrice;
+    if (maxPrice !== null && Number.isFinite(maxPrice)) priceFilter.lte = maxPrice;
+
     const where = {
       isActive: true,
       ...(req.query.categoryId
         ? { categoryId: String(req.query.categoryId) }
         : {}),
-      ...(req.query.minPrice || req.query.maxPrice
-        ? {
-            askingPrice: {
-              ...(req.query.minPrice
-                ? { gte: Number(req.query.minPrice) }
-                : {}),
-              ...(req.query.maxPrice
-                ? { lte: Number(req.query.maxPrice) }
-                : {}),
-            },
-          }
-        : {}),
+      ...(Object.keys(priceFilter).length ? { askingPrice: priceFilter } : {}),
       ...(req.query.search
         ? {
             OR: [

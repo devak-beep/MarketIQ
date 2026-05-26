@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,44 +11,40 @@ import { useFocusEffect } from "@react-navigation/native";
 import PrimaryButton from "../components/PrimaryButton";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useAppAlert } from "../components/AppAlert";
 
 export default function ProfileScreen() {
   const { token, user, signOut } = useAuth();
+  const alert = useAppAlert();
   const [myListings, setMyListings] = useState([]);
   const [sentOffers, setSentOffers] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadActivity = useCallback(async (isRefresh = false) => {
+    if (!token) {
+      setMyListings([]);
+      setSentOffers([]);
+      return;
+    }
+    if (isRefresh) setRefreshing(true);
+    try {
+      const [listingsRes, sentRes] = await Promise.all([
+        api.myListings(token),
+        api.sentOffers(token),
+      ]);
+      setMyListings(listingsRes.data || []);
+      setSentOffers(sentRes.data || []);
+    } catch (error) {
+      alert("Profile", error.message || "Failed to load activity");
+    } finally {
+      setRefreshing(false);
+    }
+  }, [token]);
 
   useFocusEffect(
     useCallback(() => {
-      let mounted = true;
-
-      async function loadActivity() {
-        if (!token) {
-          if (!mounted) return;
-          setMyListings([]);
-          setSentOffers([]);
-          return;
-        }
-
-        try {
-          const [listingsRes, sentRes] = await Promise.all([
-            api.myListings(token),
-            api.sentOffers(token),
-          ]);
-          if (!mounted) return;
-          setMyListings(listingsRes.data || []);
-          setSentOffers(sentRes.data || []);
-        } catch (error) {
-          if (!mounted) return;
-          Alert.alert("Profile", error.message || "Failed to load activity");
-        }
-      }
-
       loadActivity();
-
-      return () => {
-        mounted = false;
-      };
-    }, [token]),
+    }, [loadActivity]),
   );
 
   const soldItems = myListings.filter((item) => !item.isActive);
@@ -57,7 +53,12 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => loadActivity(true)} colors={["#2563eb"]} />
+        }
+      >
         <View style={styles.card}>
           <Text style={styles.title}>Profile</Text>
           <Text style={styles.text}>
@@ -72,7 +73,7 @@ export default function ProfileScreen() {
             label="Sign Out"
             onPress={() => {
               signOut();
-              Alert.alert("Signed out", "You have been signed out.");
+              alert("Signed out", "You have been signed out.");
             }}
           />
         </View>

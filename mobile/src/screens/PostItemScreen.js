@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -9,10 +10,11 @@ import {
   Text,
   View,
 } from "react-native";
-import { launchImageLibrary } from "react-native-image-picker";
+import { launchImageLibrary, launchCamera } from "react-native-image-picker";
 import { api } from "../services/api";
 import { predictPrice } from "../services/ml";
 import { useAuth } from "../context/AuthContext";
+import { useAppAlert } from "../components/AppAlert";
 import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
 
@@ -20,6 +22,7 @@ const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
 
 export default function PostItemScreen() {
   const { token, user } = useAuth();
+  const alert = useAppAlert();
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState("");
   const [subcategoryId, setSubcategoryId] = useState("");
@@ -31,7 +34,7 @@ export default function PostItemScreen() {
   const [suggestedPrice, setSuggestedPrice] = useState(null);
   const [predicting, setPredicting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [fieldErrors, setFieldErrors] = useState({});
+  const userEditedPrice = useRef(false);
 
   const [categoriesError, setCategoriesError] = useState(false);
 
@@ -72,7 +75,7 @@ export default function PostItemScreen() {
           description_length: description.length,
         });
         setSuggestedPrice(result.predicted_price);
-        if (!askingPrice) {
+        if (!userEditedPrice.current) {
           setAskingPrice(String(Math.round(result.predicted_price)));
         }
       } catch {
@@ -83,54 +86,66 @@ export default function PostItemScreen() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [categoryId, subcategoryId, categories, condition, description, title, askingPrice]);
+  }, [categoryId, subcategoryId, categories, condition, description, title]);
+
+  async function handleImageUpload(response) {
+    if (response.didCancel || !response.assets?.length) return;
+
+    setSubmitting(true);
+    try {
+      const uploadedUrls = [];
+      for (const asset of response.assets) {
+        const formData = new FormData();
+        formData.append("file", {
+          uri: asset.uri,
+          type: asset.type || "image/jpeg",
+          name: asset.fileName || "photo.jpg",
+        });
+        formData.append("upload_preset", "ml_default");
+        formData.append("folder", "marketiq");
+
+        try {
+          const res = await fetch(
+            "https://api.cloudinary.com/v1_1/dwyoyjqt8/image/upload",
+            { method: "POST", body: formData }
+          );
+          const data = await res.json();
+          if (data.secure_url) {
+            uploadedUrls.push(data.secure_url);
+          } else {
+            throw new Error(data.error?.message || "Upload failed");
+          }
+        } catch (uploadErr) {
+          alert("Upload failed", uploadErr.message);
+          setSubmitting(false);
+          return;
+        }
+      }
+      setImageUrls((prev) => [...prev, ...uploadedUrls]);
+    } catch (error) {
+      alert("Upload failed", error.message || "Unknown error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   function pickImages() {
-    launchImageLibrary(
-      { mediaType: "photo", selectionLimit: 4, quality: 0.5 },
-      async (response) => {
-        if (response.didCancel || !response.assets?.length) return;
-
-        setSubmitting(true);
-        try {
-          const uploadedUrls = [];
-
-          for (const asset of response.assets) {
-            const formData = new FormData();
-            formData.append("file", {
-              uri: asset.uri,
-              type: asset.type || "image/jpeg",
-              name: asset.fileName || "photo.jpg",
-            });
-            formData.append("upload_preset", "ml_default");
-            formData.append("folder", "marketiq");
-
-            try {
-              const res = await fetch(
-                "https://api.cloudinary.com/v1_1/dwyoyjqt8/image/upload",
-                { method: "POST", body: formData }
-              );
-              const data = await res.json();
-              if (data.secure_url) {
-                uploadedUrls.push(data.secure_url);
-              } else {
-                throw new Error(data.error?.message || "Upload failed");
-              }
-            } catch (uploadErr) {
-              Alert.alert("Upload failed", uploadErr.message);
-              setSubmitting(false);
-              return;
-            }
-          }
-
-          setImageUrls((prev) => [...prev, ...uploadedUrls]);
-        } catch (error) {
-          Alert.alert("Upload failed", error.message || "Unknown error");
-        } finally {
-          setSubmitting(false);
-        }
+    alert("Upload Image", "Choose an option", [
+      {
+        text: "Take Photo",
+        onPress: () =>
+          launchCamera({ mediaType: "photo", quality: 0.5 }, handleImageUpload),
       },
-    );
+      {
+        text: "Choose from Gallery",
+        onPress: () =>
+          launchImageLibrary(
+            { mediaType: "photo", selectionLimit: 4, quality: 0.5 },
+            handleImageUpload
+          ),
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
   }
 
   function clearFieldError(field) {
@@ -190,7 +205,7 @@ export default function PostItemScreen() {
   async function submit() {
     const validation = validateLocal();
     if (!validation.ok) {
-      Alert.alert(
+      alert(
         "Missing details",
         `Please complete these fields:\n• ${Object.values(validation.nextErrors).join("\n• ")}`,
       );
@@ -198,7 +213,7 @@ export default function PostItemScreen() {
     }
 
     if (!token) {
-      Alert.alert("Sign in required", "Please sign in before posting an item.");
+      alert("Sign in required", "Please sign in before posting an item.");
       return;
     }
 
@@ -207,7 +222,7 @@ export default function PostItemScreen() {
         role: user?.role,
         userId: user?.id,
       });
-      Alert.alert(
+      alert(
         "Seller account required",
         "Only seller accounts can publish listings.",
       );
@@ -225,7 +240,7 @@ export default function PostItemScreen() {
         imageUrls,
       };
       await api.createListing(token, payload);
-      Alert.alert("Success", "Listing created successfully.");
+      alert("Success", "Listing created successfully.");
       setCategoryId("");
       setTitle("");
       setDescription("");
@@ -234,13 +249,14 @@ export default function PostItemScreen() {
       setImageUrls([]);
       setSuggestedPrice(null);
       setFieldErrors({});
+      userEditedPrice.current = false;
     } catch (error) {
       console.error("Create listing failed", {
         message: error.message,
         details: error.details,
       });
       const details = getFieldErrorMessage(error.details);
-      Alert.alert(
+      alert(
         "Create listing failed",
         details || error.message || "Request failed",
       );
@@ -265,7 +281,14 @@ export default function PostItemScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.title}>Post Item</Text>
         <Text style={styles.subtitle}>
           Get an instant suggested price before publishing.
@@ -368,6 +391,7 @@ export default function PostItemScreen() {
           label="Asking Price"
           value={askingPrice}
           onChangeText={(value) => {
+            userEditedPrice.current = true;
             setAskingPrice(value);
             clearFieldError("askingPrice");
           }}
@@ -400,7 +424,10 @@ export default function PostItemScreen() {
             <PrimaryButton
               label="Use Suggested Price"
               variant="secondary"
-              onPress={() => setAskingPrice(String(Math.round(suggestedPrice)))}
+              onPress={() => {
+                userEditedPrice.current = false;
+                setAskingPrice(String(Math.round(suggestedPrice)));
+              }}
             />
           ) : null}
         </View>
@@ -410,7 +437,8 @@ export default function PostItemScreen() {
           onPress={submit}
           loading={submitting}
         />
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

@@ -1,9 +1,10 @@
 import React from "react";
-import { ScrollView, Text } from "react-native";
+import { ScrollView, StatusBar, Text } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { AuthProvider } from "./src/context/AuthContext";
+import { AlertProvider } from "./src/components/AppAlert";
 
 class ErrorBoundary extends React.Component {
   state = { error: null };
@@ -25,11 +26,14 @@ class ErrorBoundary extends React.Component {
 export default function App() {
   return (
     <ErrorBoundary>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8fafc" translucent={false} />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <AuthProvider>
-          <NavigationContainer>
-            <AppNavigator />
-          </NavigationContainer>
+          <AlertProvider>
+            <NavigationContainer>
+              <AppNavigator />
+            </NavigationContainer>
+          </AlertProvider>
         </AuthProvider>
       </GestureHandlerRootView>
     </ErrorBoundary>

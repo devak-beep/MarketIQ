@@ -37,6 +37,24 @@ export async function createOffer(req, res, next) {
         .json({ message: "Cannot make an offer on your own listing" });
     }
 
+    // If buyer has a prior REJECTED offer on this listing, replace it.
+    // A PENDING or ACCEPTED offer blocks a new one.
+    const existingOffer = await prisma.offer.findUnique({
+      where: { listingId_buyerId: { listingId: parsed.data.listingId, buyerId: req.user.id } },
+      select: { id: true, status: true },
+    });
+
+    if (existingOffer) {
+      if (existingOffer.status === "PENDING") {
+        return res.status(409).json({ message: "You already have a pending offer on this listing" });
+      }
+      if (existingOffer.status === "ACCEPTED") {
+        return res.status(409).json({ message: "Your offer on this listing was already accepted" });
+      }
+      // REJECTED — delete it so the new offer can be created
+      await prisma.offer.delete({ where: { id: existingOffer.id } });
+    }
+
     const offer = await prisma.offer.create({
       data: {
         listingId: parsed.data.listingId,
@@ -54,11 +72,6 @@ export async function createOffer(req, res, next) {
 
     res.status(201).json({ data: offer });
   } catch (error) {
-    if (error.code === "P2002") {
-      return res
-        .status(409)
-        .json({ message: "Duplicate offer already exists for this listing" });
-    }
     next(error);
   }
 }

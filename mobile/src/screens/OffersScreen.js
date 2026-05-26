@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  Alert,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,21 +11,24 @@ import { useFocusEffect } from "@react-navigation/native";
 import PrimaryButton from "../components/PrimaryButton";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useAppAlert } from "../components/AppAlert";
 
 export default function OffersScreen() {
   const { token } = useAuth();
+  const alert = useAppAlert();
   const [mode, setMode] = useState("received");
   const [offers, setOffers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (isRefresh = false) => {
     if (!token) {
       setOffers([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    isRefresh ? setRefreshing(true) : setLoading(true);
     try {
       const result =
         mode === "received"
@@ -33,9 +36,10 @@ export default function OffersScreen() {
           : await api.sentOffers(token);
       setOffers(result.data || []);
     } catch (error) {
-      Alert.alert("Offers error", error.message);
+      alert("Offers error", error.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [mode, token]);
 
@@ -52,7 +56,7 @@ export default function OffersScreen() {
         ? "Accept this offer? This action is permanent and cannot be undone."
         : "Reject this offer? This action is permanent and cannot be undone.";
 
-    Alert.alert(`${label} Offer`, message, [
+    alert(`${label} Offer`, message, [
       { text: "Cancel", style: "cancel" },
       {
         text: label,
@@ -62,7 +66,7 @@ export default function OffersScreen() {
             await api.updateOfferStatus(token, id, status);
             load();
           } catch (error) {
-            Alert.alert("Update failed", error.message);
+            alert("Update failed", error.message);
           }
         },
       },
@@ -89,7 +93,12 @@ export default function OffersScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} colors={["#2563eb"]} />
+        }
+      >
         {offers.map((offer) => (
           <View key={offer.id} style={styles.card}>
             <Text style={styles.cardTitle}>{offer.listing?.title}</Text>

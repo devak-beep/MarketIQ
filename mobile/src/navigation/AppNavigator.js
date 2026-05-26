@@ -1,7 +1,7 @@
 import React from "react";
-import { Text } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useAuth } from "../context/AuthContext";
 import AuthScreen from "../screens/AuthScreen";
 import HomeScreen from "../screens/HomeScreen";
@@ -33,32 +33,37 @@ function HomeStack() {
 function Tabs() {
   const { user } = useAuth();
   const isSeller = user?.role === "SELLER";
-  console.log("Current user role", user?.role || "unknown");
 
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen
-        name="Browse"
-        component={HomeStack}
-        options={{ tabBarLabel: "Browse", tabBarIcon: () => <Text>🏠</Text> }}
-      />
-      <Tab.Screen
-        name="Offers"
-        component={OffersScreen}
-        options={{ tabBarIcon: () => <Text>💬</Text> }}
-      />
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        headerShown: false,
+        tabBarActiveTintColor: "#2563eb",
+        tabBarInactiveTintColor: "#94a3b8",
+        tabBarStyle: {
+          backgroundColor: "#fff",
+          borderTopColor: "#e2e8f0",
+          height: 60,
+          paddingBottom: 8,
+        },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "700" },
+        tabBarIcon: ({ color, size }) => {
+          const icons = {
+            Browse: "store-search-outline",
+            Offers: "tag-multiple-outline",
+            PostItem: "plus-circle-outline",
+            Profile: "account-circle-outline",
+          };
+          return <Icon name={icons[route.name]} size={size} color={color} />;
+        },
+      })}
+    >
+      <Tab.Screen name="Browse" component={HomeStack} options={{ tabBarLabel: "Browse" }} />
+      <Tab.Screen name="Offers" component={OffersScreen} options={{ tabBarLabel: "Offers" }} />
       {isSeller ? (
-        <Tab.Screen
-          name="PostItem"
-          component={PostItemScreen}
-          options={{ tabBarLabel: "Sell", tabBarIcon: () => <Text>➕</Text> }}
-        />
+        <Tab.Screen name="PostItem" component={PostItemScreen} options={{ tabBarLabel: "Sell" }} />
       ) : null}
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ tabBarIcon: () => <Text>👤</Text> }}
-      />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ tabBarLabel: "Profile" }} />
     </Tab.Navigator>
   );
 }

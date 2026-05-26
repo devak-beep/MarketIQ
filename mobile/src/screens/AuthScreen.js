@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -11,9 +12,11 @@ import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
 import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useAppAlert } from "../components/AppAlert";
 
 export default function AuthScreen() {
   const { signIn } = useAuth();
+  const alert = useAppAlert();
   const [mode, setMode] = useState("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,7 +26,7 @@ export default function AuthScreen() {
 
   async function submit() {
     if (!email || !password || (mode === "register" && !name)) {
-      Alert.alert("Missing fields", "Please complete all required fields.");
+      alert("Missing fields", "Please complete all required fields.");
       return;
     }
 
@@ -40,7 +43,7 @@ export default function AuthScreen() {
       // result contains { accessToken, refreshToken, user }
       await signIn(result.accessToken, result.refreshToken, result.user);
     } catch (error) {
-      Alert.alert("Authentication failed", error.message);
+      alert("Authentication failed", error.message);
     } finally {
       setLoading(false);
     }
@@ -48,7 +51,14 @@ export default function AuthScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
         <View style={styles.hero}>
           <Text style={styles.kicker}>MarketIQ</Text>
           <Text style={styles.title}>Buy, sell, and price items smarter.</Text>
@@ -111,7 +121,8 @@ export default function AuthScreen() {
             onPress={() => setMode(mode === "login" ? "register" : "login")}
           />
         </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

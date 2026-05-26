@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -22,6 +24,7 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
   const [priceError, setPriceError] = useState("");
@@ -78,7 +81,7 @@ export default function HomeScreen({ navigation }) {
           page: String(nextPage),
           limit: "10",
           search: query.trim() || undefined,
-          categoryId: categoryId || undefined,
+          categoryId: subcategoryId || categoryId || undefined,
           minPrice:
             priceValidation.min !== null
               ? String(priceValidation.min)
@@ -101,7 +104,7 @@ export default function HomeScreen({ navigation }) {
         setRefreshing(false);
       }
     },
-    [query, categoryId, minPrice, maxPrice],
+    [query, categoryId, subcategoryId, minPrice, maxPrice],
   );
 
   useEffect(() => {
@@ -142,8 +145,12 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.screen}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={styles.header}>
-        <Text style={styles.title}>Marketplace</Text>
+        <Text style={styles.title}>MarketIQ</Text>
         <Text style={styles.subtitle}>
           Browse listings, filter by price, and make offers.
         </Text>
@@ -158,41 +165,64 @@ export default function HomeScreen({ navigation }) {
           style={styles.input}
         />
         <Text style={styles.filterLabel}>Category</Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.categoryRow}
-        >
+        <View style={styles.chipsWrap}>
           <Pressable
-            onPress={() => setCategoryId("")}
+            onPress={() => { setCategoryId(""); setSubcategoryId(""); }}
             style={[styles.chip, !categoryId && styles.chipActive]}
           >
-            <Text
-              style={[styles.chipText, !categoryId && styles.chipTextActive]}
-            >
+            <Text style={[styles.chipText, !categoryId && styles.chipTextActive]}>
               All
             </Text>
           </Pressable>
           {categories.map((category) => (
             <Pressable
               key={category.id}
-              onPress={() => setCategoryId(category.id)}
-              style={[
-                styles.chip,
-                categoryId === category.id && styles.chipActive,
-              ]}
+              onPress={() => {
+                setCategoryId(category.id);
+                setSubcategoryId("");
+              }}
+              style={[styles.chip, categoryId === category.id && styles.chipActive]}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  categoryId === category.id && styles.chipTextActive,
-                ]}
-              >
+              <Text style={[styles.chipText, categoryId === category.id && styles.chipTextActive]}>
                 {category.name}
               </Text>
             </Pressable>
           ))}
-        </ScrollView>
+        </View>
+
+        {/* Subcategory row — shown when selected category has subcategories */}
+        {categories.find((c) => c.id === categoryId)?.subcategories?.length > 0 && (
+          <>
+            <Text style={styles.filterLabel}>Subcategory</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.categoryRow}
+            >
+              <Pressable
+                onPress={() => setSubcategoryId("")}
+                style={[styles.chip, !subcategoryId && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, !subcategoryId && styles.chipTextActive]}>
+                  All
+                </Text>
+              </Pressable>
+              {categories
+                .find((c) => c.id === categoryId)
+                .subcategories.map((sub) => (
+                  <Pressable
+                    key={sub.id}
+                    onPress={() => setSubcategoryId(sub.id)}
+                    style={[styles.chip, subcategoryId === sub.id && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, subcategoryId === sub.id && styles.chipTextActive]}>
+                      {sub.name}
+                    </Text>
+                  </Pressable>
+                ))}
+            </ScrollView>
+          </>
+        )}
         {categoriesError ? (
           <Text style={styles.error}>{categoriesError}</Text>
         ) : null}
@@ -229,6 +259,7 @@ export default function HomeScreen({ navigation }) {
         data={items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 28 }}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <ListingCard
             item={item}
@@ -251,6 +282,7 @@ export default function HomeScreen({ navigation }) {
           ) : null
         }
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -279,8 +311,14 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 10 },
   half: { flex: 1 },
   categoryRow: {
-    gap: 10,
+    gap: 8,
     paddingBottom: 12,
+  },
+  chipsWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
   },
   chip: {
     minHeight: 40,
