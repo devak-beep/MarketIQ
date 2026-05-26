@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Dimensions,
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -196,8 +196,8 @@ export default function ListingDetailsScreen({ route }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8fafc" },
-  content: { gap: 12, paddingBottom: 24 },
-  gallery: { width: SCREEN_WIDTH, marginBottom: 4 },
+  content: { paddingBottom: 24 },
+  gallery: { width: SCREEN_WIDTH, marginBottom: 12 },
   image: {
     width: SCREEN_WIDTH,
     height: 280,
@@ -234,6 +234,7 @@ const styles = StyleSheet.create({
   },
   empty: { textAlign: "center", marginTop: 40, color: "#64748b" },
   labelInCard: { paddingHorizontal: 0 },
+  statusBadge: {
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,

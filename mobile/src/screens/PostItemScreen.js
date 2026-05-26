@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,6 +34,7 @@ export default function PostItemScreen() {
   const [suggestedPrice, setSuggestedPrice] = useState(null);
   const [predicting, setPredicting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
   const userEditedPrice = useRef(false);
 
   const [categoriesError, setCategoriesError] = useState(false);
@@ -161,8 +162,8 @@ export default function PostItemScreen() {
     const formErrors = Array.isArray(errors?.formErrors)
       ? errors.formErrors.filter(Boolean)
       : [];
-    const fieldErrors = errors?.fieldErrors || errors?.errors || {};
-    const parts = Object.entries(fieldErrors || {})
+    const errorFields = errors?.fieldErrors || errors?.errors || {};
+    const parts = Object.entries(errorFields || {})
       .map(([field, value]) => {
         if (Array.isArray(value))
           return [field, value.filter(Boolean).join(", ")];

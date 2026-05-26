@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,

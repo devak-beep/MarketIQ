@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [refreshToken, setRefreshToken] = useState(null);
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
   const refreshTokenRef = useRef(null);
 
   useEffect(() => {
@@ -48,18 +49,33 @@ export function AuthProvider({ children }) {
     (async () => {
       try {
         const stored = await AsyncStorage.getItem("refreshToken");
-        if (!stored) return;
+        if (!stored) { setLoading(false); return; }
         if (!mounted) return;
         setRefreshToken(stored);
+        // Restore cached user & mark as loading=false immediately so app opens
+        const cachedUser = await AsyncStorage.getItem("cachedUser");
+        if (cachedUser && mounted) {
+          try {
+            const parsed = JSON.parse(cachedUser);
+            setUser(parsed);
+            // Set a placeholder token so navigator goes to Tabs right away
+            setToken("__restoring__");
+          } catch (_) {}
+        }
+        if (mounted) setLoading(false);
+        // Refresh in background
         const res = await api.refresh(stored);
         if (!mounted) return;
         setToken(res.accessToken);
         setRefreshToken(res.refreshToken || stored);
         await AsyncStorage.setItem("refreshToken", res.refreshToken || stored);
         const me = await api.me(res.accessToken);
+        if (!mounted) return;
         setUser(me.user || null);
+        await AsyncStorage.setItem("cachedUser", JSON.stringify(me.user || null));
       } catch {
-        await AsyncStorage.removeItem("refreshToken");
+        await AsyncStorage.multiRemove(["refreshToken", "cachedUser"]);
+        if (mounted) { setToken(null); setUser(null); setLoading(false); }
       }
     })();
     return () => {
@@ -71,6 +87,7 @@ export function AuthProvider({ children }) {
     () => ({
       token,
       user,
+      loading,
       setUser,
       signIn: async (accessToken, refreshToken, nextUser) => {
         setToken(accessToken);
@@ -79,6 +96,9 @@ export function AuthProvider({ children }) {
           setRefreshToken(refreshToken);
           await AsyncStorage.setItem("refreshToken", refreshToken);
         }
+        if (nextUser) {
+          await AsyncStorage.setItem("cachedUser", JSON.stringify(nextUser));
+        }
       },
       signOut: async () => {
         const stored =
@@ -86,7 +106,7 @@ export function AuthProvider({ children }) {
         try {
           if (stored) await api.logout(stored);
         } catch (_) {}
-        await AsyncStorage.removeItem("refreshToken");
+        await AsyncStorage.multiRemove(["refreshToken", "cachedUser"]);
         setToken(null);
         refreshTokenRef.current = null;
         setRefreshToken(null);
