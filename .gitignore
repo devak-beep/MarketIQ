@@ -19,6 +19,11 @@ __pycache__/
 .venv/
 venv/
 
+# ML - large data files (too large for git)
+ml-service/*.csv
+ml-service/*.tsv
+ml-service/prepare_dataset.py
+
 # OS
 .DS_Store
 Thumbs.db

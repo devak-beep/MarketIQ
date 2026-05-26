@@ -22,6 +22,7 @@ export default function PostItemScreen() {
   const { token, user } = useAuth();
   const [categories, setCategories] = useState([]);
   const [categoryId, setCategoryId] = useState("");
+  const [subcategoryId, setSubcategoryId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [condition, setCondition] = useState("GOOD");
@@ -40,8 +41,10 @@ export default function PostItemScreen() {
       .then((result) => {
         const data = result.data || [];
         setCategories(data);
-        // Auto-select first category so user doesn't miss it
-        if (data.length > 0 && !categoryId) setCategoryId(data[0].id);
+        if (data.length > 0 && !categoryId) {
+          setCategoryId(data[0].id);
+          if (data[0].subcategories?.length > 0) setSubcategoryId(data[0].subcategories[0].id);
+        }
         if (data.length === 0) setCategoriesError(true);
       })
       .catch(() => setCategoriesError(true));
@@ -56,12 +59,13 @@ export default function PostItemScreen() {
 
       setPredicting(true);
       try {
-        const selectedCategory = categories.find(
-          (item) => item.id === categoryId,
+        const selectedCategory = categories.find((item) => item.id === categoryId);
+        const selectedSubcategory = selectedCategory?.subcategories?.find(
+          (s) => s.id === subcategoryId
         );
         const result = await predictPrice({
-          category:
-            selectedCategory?.slug || selectedCategory?.name || categoryId,
+          category: selectedCategory?.slug || selectedCategory?.name || categoryId,
+          subcategory: selectedSubcategory?.slug || selectedSubcategory?.name || "general",
           condition,
           title,
           description,
@@ -79,7 +83,7 @@ export default function PostItemScreen() {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [categoryId, categories, condition, description, title, askingPrice]);
+  }, [categoryId, subcategoryId, categories, condition, description, title, askingPrice]);
 
   function pickImages() {
     launchImageLibrary(
@@ -277,16 +281,12 @@ export default function PostItemScreen() {
               key={item.id}
               onPress={() => {
                 setCategoryId(item.id);
+                setSubcategoryId(item.subcategories?.[0]?.id || "");
                 clearFieldError("categoryId");
               }}
               style={[styles.chip, categoryId === item.id && styles.chipActive]}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  categoryId === item.id && styles.chipTextActive,
-                ]}
-              >
+              <Text style={[styles.chipText, categoryId === item.id && styles.chipTextActive]}>
                 {item.name}
               </Text>
             </Pressable>
@@ -295,6 +295,28 @@ export default function PostItemScreen() {
         {fieldErrors.categoryId ? (
           <Text style={styles.inlineError}>{fieldErrors.categoryId}</Text>
         ) : null}
+
+        {/* Subcategory — shown only when parent has subcategories */}
+        {categories.find((c) => c.id === categoryId)?.subcategories?.length > 0 && (
+          <>
+            <Text style={styles.label}>Subcategory *</Text>
+            <View style={styles.chipsWrap}>
+              {categories
+                .find((c) => c.id === categoryId)
+                .subcategories.map((sub) => (
+                  <Pressable
+                    key={sub.id}
+                    onPress={() => setSubcategoryId(sub.id)}
+                    style={[styles.chip, subcategoryId === sub.id && styles.chipActive]}
+                  >
+                    <Text style={[styles.chipText, subcategoryId === sub.id && styles.chipTextActive]}>
+                      {sub.name}
+                    </Text>
+                  </Pressable>
+                ))}
+            </View>
+          </>
+        )}
 
         <FormField
           label="Title"
