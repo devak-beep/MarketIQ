@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Dimensions,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -15,11 +16,13 @@ import { api } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useAppAlert } from "../components/AppAlert";
 
+const SCREEN_WIDTH = Dimensions.get("window").width;
+
 export default function ListingDetailsScreen({ route }) {
   const { token } = useAuth();
   const alert = useAppAlert();
   const initialListing = route.params?.listing || null;
-  const [listing] = useState(initialListing);
+  const [listing, setListing] = useState(initialListing);
   const [offerPrice, setOfferPrice] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -27,13 +30,21 @@ export default function ListingDetailsScreen({ route }) {
 
   const images = listing?.images || [];
 
+  // Fetch fresh listing to get category.parent (subcategory info)
+  useEffect(() => {
+    if (!initialListing?.id) return;
+    api.listing(initialListing.id).then((res) => {
+      if (res.data) setListing(res.data);
+    }).catch(() => {});
+  }, [initialListing?.id]);
+
   useEffect(() => {
     if (!token || !listing) return;
     api.sentOffers(token).then((res) => {
       const match = (res.data || []).find((o) => o.listingId === listing.id);
       setExistingOffer(match || null);
     }).catch(() => {});
-  }, [token, listing]);
+  }, [token, listing?.id]);
 
   async function submitOffer() {
     if (!token) {
@@ -87,6 +98,7 @@ export default function ListingDetailsScreen({ route }) {
         >
         <ScrollView
           horizontal
+          pagingEnabled
           showsHorizontalScrollIndicator={false}
           style={styles.gallery}
         >
@@ -96,20 +108,31 @@ export default function ListingDetailsScreen({ route }) {
                 key={image.id}
                 source={{ uri: image.url }}
                 style={styles.image}
+                resizeMode="cover"
               />
             ))
           ) : (
-            <View style={[styles.image, styles.placeholder]} />
+            <View style={styles.image} />
           )}
         </ScrollView>
 
         <Text style={styles.title}>{listing.title}</Text>
-        <Text style={styles.price}>
-          ₹{Number(listing.askingPrice).toFixed(2)}
-        </Text>
-        <Text style={styles.meta}>
-          {listing.category?.name} • {listing.condition}
-        </Text>
+        <Text style={styles.price}>₹{Number(listing.askingPrice).toFixed(2)}</Text>
+
+        {/* Category breadcrumb: Parent > Subcategory or just Category */}
+        <View style={styles.breadcrumb}>
+          {listing.category?.parent ? (
+            <>
+              <Text style={styles.breadcrumbText}>{listing.category.parent.name}</Text>
+              <Text style={styles.breadcrumbSep}> › </Text>
+              <Text style={styles.breadcrumbText}>{listing.category.name}</Text>
+            </>
+          ) : (
+            <Text style={styles.breadcrumbText}>{listing.category?.name}</Text>
+          )}
+          <Text style={styles.breadcrumbSep}> · </Text>
+          <Text style={styles.breadcrumbText}>{listing.condition}</Text>
+        </View>
         <Text style={styles.label}>Seller</Text>
         <Text style={styles.text}>
           {listing.seller?.name} • {listing.seller?.email}
@@ -118,7 +141,7 @@ export default function ListingDetailsScreen({ route }) {
         <Text style={styles.text}>{listing.description}</Text>
 
         <View style={styles.offerCard}>
-          <Text style={styles.label}>Make an Offer</Text>
+          <Text style={[styles.label, styles.labelInCard]}>Make an Offer</Text>
 
           {existingOffer?.status === "PENDING" && (
             <View style={styles.statusBadge}>
@@ -173,26 +196,31 @@ export default function ListingDetailsScreen({ route }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#f8fafc" },
-  content: { padding: 16, gap: 12 },
-  gallery: { borderRadius: 20 },
+  content: { gap: 12, paddingBottom: 24 },
+  gallery: { width: SCREEN_WIDTH, marginBottom: 4 },
   image: {
-    width: 330,
-    height: 260,
-    borderRadius: 20,
-    marginRight: 12,
-    backgroundColor: "#e5e7eb",
+    width: SCREEN_WIDTH,
+    height: 280,
+    backgroundColor: "#e2e8f0",
   },
-  placeholder: { backgroundColor: "#cbd5e1" },
-  title: { fontSize: 26, fontWeight: "900", color: "#0f172a" },
-  price: { fontSize: 24, fontWeight: "900", color: "#2563eb" },
-  meta: { color: "#64748b" },
-  label: { fontWeight: "800", color: "#0f172a", marginTop: 6 },
-  text: { color: "#334155", lineHeight: 20 },
+  title: { fontSize: 26, fontWeight: "900", color: "#0f172a", paddingHorizontal: 16 },
+  price: { fontSize: 24, fontWeight: "900", color: "#2563eb", paddingHorizontal: 16 },
+  breadcrumb: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    flexWrap: "wrap",
+  },
+  breadcrumbText: { color: "#64748b", fontSize: 13, fontWeight: "600" },
+  breadcrumbSep: { color: "#94a3b8", fontSize: 13 },
+  label: { fontWeight: "800", color: "#0f172a", marginTop: 4, paddingHorizontal: 16 },
+  text: { color: "#334155", lineHeight: 20, paddingHorizontal: 16 },
   offerCard: {
     backgroundColor: "#fff",
     borderRadius: 20,
     padding: 16,
-    marginTop: 8,
+    marginHorizontal: 16,
+    marginTop: 4,
   },
   input: {
     borderWidth: 1,
@@ -205,7 +233,7 @@ const styles = StyleSheet.create({
     color: "#0f172a",
   },
   empty: { textAlign: "center", marginTop: 40, color: "#64748b" },
-  statusBadge: {
+  labelInCard: { paddingHorizontal: 0 },
     borderRadius: 12,
     padding: 12,
     marginBottom: 10,

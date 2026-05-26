@@ -186,7 +186,7 @@ export async function getListing(req, res, next) {
     const listing = await prisma.listing.findUnique({
       where: { id: req.params.id },
       include: {
-        category: true,
+        category: { include: { parent: true } },
         images: { orderBy: { sortOrder: "asc" } },
         seller: {
           select: { id: true, name: true, email: true, createdAt: true },
@@ -249,7 +249,7 @@ export async function browseListings(req, res, next) {
       prisma.listing.findMany({
         where,
         include: {
-          category: true,
+          category: { include: { parent: true } },
           images: { orderBy: { sortOrder: "asc" } },
           seller: { select: { id: true, name: true } },
         },
