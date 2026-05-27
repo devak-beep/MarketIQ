@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   cachedUser: "cachedUser",
 };
 const AUTH_STORAGE_KEYS = Object.values(STORAGE_KEYS);
+const RESTORING_ACCESS_TOKEN = "__restoring_access_token__";
 
 function parseCachedUser(value) {
   if (!value) return null;
@@ -30,7 +31,7 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
   const [refreshToken, setRefreshToken] = useState(null);
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const refreshTokenRef = useRef(null);
 
   useEffect(() => {
@@ -130,13 +131,7 @@ export function AuthProvider({ children }) {
       }
     };
 
-    // Hard safety net: startup should never stay on the splash gate forever.
-    const safetyTimer = setTimeout(() => {
-      if (mounted) setLoading(false);
-    }, 10000);
-
     const done = () => {
-      clearTimeout(safetyTimer);
       if (mounted) setLoading(false);
     };
 
@@ -158,18 +153,15 @@ export function AuthProvider({ children }) {
           refreshTokenRef.current = storedRefreshToken;
         }
 
-        if (storedAccessToken) {
-          setToken(storedAccessToken);
+        const startupToken = storedAccessToken || RESTORING_ACCESS_TOKEN;
+        if (storedRefreshToken) {
+          setToken(startupToken);
           done();
           refreshStoredSession(storedRefreshToken, false);
           return;
         }
 
-        if (!storedRefreshToken) {
-          return done();
-        }
-
-        await refreshStoredSession(storedRefreshToken, true);
+        done();
       } catch {
         await clearSession();
       } finally {
@@ -178,7 +170,6 @@ export function AuthProvider({ children }) {
     })();
     return () => {
       mounted = false;
-      clearTimeout(safetyTimer);
     };
   }, []);
 

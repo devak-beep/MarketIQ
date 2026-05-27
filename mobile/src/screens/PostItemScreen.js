@@ -19,6 +19,86 @@ import FormField from "../components/FormField";
 import PrimaryButton from "../components/PrimaryButton";
 
 const CONDITIONS = ["NEW", "LIKE_NEW", "GOOD", "FAIR", "POOR"];
+const ML_CATEGORY_BY_SLUG = {
+  "mobile-phones": "phones",
+  laptops: "laptops",
+  cameras: "cameras",
+  "audio-headphones": "accessories",
+  "video-games-consoles": "games",
+  "tv-home-theatre": "appliances",
+  tablets: "tablets",
+  motorcycles: "bikes",
+  scooters: "bikes",
+  bicycles: "bikes",
+  "kitchen-appliances": "appliances",
+  "washing-machines": "appliances",
+  "air-conditioners": "appliances",
+  refrigerators: "appliances",
+  textbooks: "books",
+  fiction: "books",
+  "non-fiction": "books",
+  "gym-equipment": "fitness",
+  "outdoor-sports": "fitness",
+  "cycles-skating": "fitness",
+  "video-games": "games",
+  accessories: "accessories",
+};
+const ML_KEYWORDS_BY_SLUG = {
+  "mobile-phones": "phone iphone samsung mobile",
+  laptops: "laptop macbook dell hp",
+  cameras: "camera canon sony lens",
+  "audio-headphones": "headphones airpods audio sony",
+  "video-games-consoles": "playstation xbox nintendo console games",
+  "tv-home-theatre": "tv television home theatre oled",
+  tablets: "tablet ipad android",
+  motorcycles: "motorcycle royal enfield bike",
+  scooters: "scooter activa",
+  bicycles: "bicycle cycle bike",
+  "kitchen-appliances": "kitchen appliance air fryer microwave",
+  "washing-machines": "washing machine washer",
+  "air-conditioners": "air conditioner ac inverter",
+  refrigerators: "refrigerator fridge",
+  textbooks: "textbook books study",
+  fiction: "fiction novel books",
+  "non-fiction": "non fiction books",
+  "gym-equipment": "gym fitness dumbbell treadmill",
+  "outdoor-sports": "sports badminton racket",
+  "cycles-skating": "cycle skating fitness",
+  "video-games": "video game playstation xbox",
+  accessories: "airpods headphones mouse accessories",
+};
+
+function normalizeForMl(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function getPredictionCategory(category, subcategory) {
+  const subSlug = normalizeForMl(subcategory?.slug || subcategory?.name);
+  const categorySlug = normalizeForMl(category?.slug || category?.name);
+
+  return (
+    ML_CATEGORY_BY_SLUG[subSlug] ||
+    ML_CATEGORY_BY_SLUG[categorySlug] ||
+    categorySlug ||
+    "general"
+  );
+}
+
+function getPredictionKeywords(category, subcategory) {
+  const subSlug = normalizeForMl(subcategory?.slug || subcategory?.name);
+  const categorySlug = normalizeForMl(category?.slug || category?.name);
+
+  return ML_KEYWORDS_BY_SLUG[subSlug] || ML_KEYWORDS_BY_SLUG[categorySlug] || "";
+}
+
+function formatRupees(value) {
+  return `₹${Math.round(Number(value) || 0).toLocaleString("en-IN")}`;
+}
 
 export default function PostItemScreen() {
   const { token, user } = useAuth();
@@ -32,6 +112,7 @@ export default function PostItemScreen() {
   const [askingPrice, setAskingPrice] = useState("");
   const [imageUrls, setImageUrls] = useState([]);
   const [suggestedPrice, setSuggestedPrice] = useState(null);
+  const [suggestedRange, setSuggestedRange] = useState(null);
   const [predicting, setPredicting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
@@ -45,9 +126,6 @@ export default function PostItemScreen() {
       .then((result) => {
         const data = result.data || [];
         setCategories(data);
-        if (data.length > 0 && !categoryId) {
-          setCategoryId(data[0].id);
-        }
         if (data.length === 0) setCategoriesError(true);
       })
       .catch(() => setCategoriesError(true));
@@ -55,31 +133,65 @@ export default function PostItemScreen() {
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (!categoryId || !description) {
+      if (!categoryId || !description.trim()) {
+        setPredicting(false);
         setSuggestedPrice(null);
+        setSuggestedRange(null);
+        return;
+      }
+
+      const selectedCategory = categories.find(
+        (item) => item.id === categoryId,
+      );
+      const subcategories = selectedCategory?.subcategories || [];
+      const selectedSubcategory = subcategories.find(
+        (s) => s.id === subcategoryId,
+      );
+
+      if (subcategories.length > 0 && !selectedSubcategory) {
+        setPredicting(false);
+        setSuggestedPrice(null);
+        setSuggestedRange(null);
         return;
       }
 
       setPredicting(true);
       try {
-        const selectedCategory = categories.find((item) => item.id === categoryId);
-        const selectedSubcategory = selectedCategory?.subcategories?.find(
-          (s) => s.id === subcategoryId
+        const predictionKeywords = getPredictionKeywords(
+          selectedCategory,
+          selectedSubcategory,
         );
+        const predictionTitle = [predictionKeywords, title.trim()]
+          .filter(Boolean)
+          .join(" ");
+        const predictionDescription = [predictionKeywords, description.trim()]
+          .filter(Boolean)
+          .join(" ");
+
         const result = await predictPrice({
-          category: selectedCategory?.name?.toLowerCase() || categoryId,
-          subcategory: selectedSubcategory?.name?.toLowerCase() || "general",
+          category: getPredictionCategory(selectedCategory, selectedSubcategory),
+          subcategory: normalizeForMl(
+            selectedSubcategory?.slug ||
+              selectedSubcategory?.name ||
+              selectedCategory?.slug ||
+              selectedCategory?.name,
+          ),
           condition,
-          title,
-          description,
+          title: predictionTitle,
+          description: predictionDescription,
           description_length: description.length,
         });
         setSuggestedPrice(result.predicted_price);
+        setSuggestedRange({
+          low: result.price_low ?? result.predicted_price * 0.88,
+          high: result.price_high ?? result.predicted_price * 1.12,
+        });
         if (!userEditedPrice.current) {
           setAskingPrice(String(Math.round(result.predicted_price)));
         }
       } catch {
         setSuggestedPrice(null);
+        setSuggestedRange(null);
       } finally {
         setPredicting(false);
       }
@@ -181,7 +293,15 @@ export default function PostItemScreen() {
   function validateLocal() {
     const nextErrors = {};
 
-    if (!categoryId.trim()) nextErrors.categoryId = "Select a category.";
+    const selectedCategory = categories.find((item) => item.id === categoryId);
+    if (!categoryId.trim()) {
+      nextErrors.categoryId = "Select a category.";
+    } else if (
+      selectedCategory?.subcategories?.length > 0 &&
+      !subcategoryId.trim()
+    ) {
+      nextErrors.categoryId = "Select a subcategory.";
+    }
     if (title.trim().length < 3)
       nextErrors.title = "Enter at least 3 characters.";
     if (description.trim().length < 3)
@@ -248,6 +368,7 @@ export default function PostItemScreen() {
       setAskingPrice("");
       setImageUrls([]);
       setSuggestedPrice(null);
+      setSuggestedRange(null);
       setFieldErrors({});
       userEditedPrice.current = false;
     } catch (error) {
@@ -329,7 +450,10 @@ export default function PostItemScreen() {
                 .subcategories.map((sub) => (
                   <Pressable
                     key={sub.id}
-                    onPress={() => setSubcategoryId(sub.id)}
+                    onPress={() => {
+                      setSubcategoryId(sub.id);
+                      clearFieldError("categoryId");
+                    }}
                     style={[styles.chip, subcategoryId === sub.id && styles.chipActive]}
                   >
                     <Text style={[styles.chipText, subcategoryId === sub.id && styles.chipTextActive]}>
@@ -416,10 +540,29 @@ export default function PostItemScreen() {
           <Text style={styles.suggested}>
             {predicting
               ? "Calculating..."
-              : suggestedPrice
-                ? `₹${Number(suggestedPrice).toFixed(2)}`
+              : suggestedRange
+                ? `${formatRupees(suggestedRange.low)} - ${formatRupees(suggestedRange.high)}`
                 : "Select category and enter description"}
           </Text>
+          {suggestedRange ? (
+            <>
+              <View style={styles.rangeTrack}>
+                <View style={styles.rangeFill} />
+                <View style={styles.rangeMarker} />
+              </View>
+              <View style={styles.rangeLabels}>
+                <Text style={styles.rangeLabel}>
+                  Low {formatRupees(suggestedRange.low)}
+                </Text>
+                <Text style={styles.rangeLabel}>
+                  Best {formatRupees(suggestedPrice)}
+                </Text>
+                <Text style={styles.rangeLabel}>
+                  High {formatRupees(suggestedRange.high)}
+                </Text>
+              </View>
+            </>
+          ) : null}
           {suggestedPrice ? (
             <PrimaryButton
               label="Use Suggested Price"
@@ -490,6 +633,40 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   suggested: { fontSize: 24, fontWeight: "900", color: "#1d4ed8" },
+  rangeTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#dbeafe",
+    overflow: "hidden",
+    justifyContent: "center",
+  },
+  rangeFill: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 10,
+    backgroundColor: "#93c5fd",
+  },
+  rangeMarker: {
+    alignSelf: "center",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#1d4ed8",
+    borderWidth: 3,
+    borderColor: "#eff6ff",
+  },
+  rangeLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  rangeLabel: {
+    flex: 1,
+    color: "#475569",
+    fontSize: 11,
+    fontWeight: "700",
+  },
   blocked: {
     flex: 1,
     justifyContent: "center",

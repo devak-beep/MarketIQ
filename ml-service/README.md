@@ -18,9 +18,22 @@ Recommended request body:
 ```json
 {
   "category": "laptops",
+  "subcategory": "laptops",
   "condition": "GOOD",
   "title": "MacBook Pro",
   "description": "M3 14 inch 16GB 512GB good condition"
+}
+```
+
+Example response:
+
+```json
+{
+  "predicted_price": 45133.39,
+  "price_low": 37940.48,
+  "price_high": 52326.3,
+  "model_loaded": true,
+  "currency": "INR"
 }
 ```
 

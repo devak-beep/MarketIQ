@@ -92,18 +92,42 @@ def main():
 
     model.fit(X_train, y_train)
     predictions = model.predict(X_test)
+    residuals = (pd.Series(y_test.to_numpy()) - pd.Series(predictions)).abs()
 
     mae  = mean_absolute_error(y_test, predictions)
     rmse = mean_squared_error(y_test, predictions) ** 0.5
     r2   = r2_score(y_test, predictions)
 
-    metrics = {"mae": round(float(mae), 2), "rmse": round(float(rmse), 2), "r2": round(float(r2), 4)}
+    metrics = {
+        "mae": round(float(mae), 2),
+        "rmse": round(float(rmse), 2),
+        "r2": round(float(r2), 4),
+    }
+
+    uncertainty = X_test[["category"]].reset_index(drop=True).copy()
+    uncertainty["absolute_error"] = residuals
+    category_error = (
+        uncertainty.groupby("category")["absolute_error"]
+        .quantile(0.8)
+        .round(2)
+        .to_dict()
+    )
+    global_error = float(residuals.quantile(0.8))
 
     joblib.dump(
         {
             "model": model,
             "feature_columns": ["category", "subcategory", "condition", "text"],
             "metrics": metrics,
+            "catalog_prices": df[
+                ["category", "subcategory", "condition", "title", "price"]
+            ].to_dict(orient="records"),
+            "interval": {
+                "method": "p80_absolute_residual",
+                "global_error": round(global_error, 2),
+                "category_error": category_error,
+                "minimum_relative_width": 0.12,
+            },
         },
         MODEL_PATH,
     )
