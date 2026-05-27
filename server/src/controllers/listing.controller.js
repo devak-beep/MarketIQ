@@ -216,11 +216,20 @@ export async function browseListings(req, res, next) {
     if (minPrice !== null && Number.isFinite(minPrice)) priceFilter.gte = minPrice;
     if (maxPrice !== null && Number.isFinite(maxPrice)) priceFilter.lte = maxPrice;
 
+    let categoryFilter = {};
+    if (req.query.categoryId) {
+      const categoryId = String(req.query.categoryId);
+      const subcategories = await prisma.category.findMany({
+        where: { parentId: categoryId },
+        select: { id: true },
+      });
+      const categoryIds = [categoryId, ...subcategories.map((item) => item.id)];
+      categoryFilter = { categoryId: { in: categoryIds } };
+    }
+
     const where = {
       isActive: true,
-      ...(req.query.categoryId
-        ? { categoryId: String(req.query.categoryId) }
-        : {}),
+      ...categoryFilter,
       ...(Object.keys(priceFilter).length ? { askingPrice: priceFilter } : {}),
       ...(req.query.search
         ? {

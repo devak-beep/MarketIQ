@@ -212,5 +212,43 @@ describe("Listing Integration Tests", () => {
         true,
       );
     });
+
+    it("includes subcategory listings when filtering by parent category", async () => {
+      const { token } = await createTestUser("seller7@example.com", "SELLER");
+      const parent = await prisma.category.upsert({
+        where: { slug: "test-parent-category" },
+        update: {},
+        create: { name: "Test Parent Category", slug: "test-parent-category" },
+      });
+      const child = await prisma.category.upsert({
+        where: { slug: "test-child-category" },
+        update: { parentId: parent.id },
+        create: {
+          name: "Test Child Category",
+          slug: "test-child-category",
+          parentId: parent.id,
+        },
+      });
+
+      await request(app)
+        .post("/api/listings")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          title: "Item in child category",
+          description: "Test",
+          condition: "NEW",
+          categoryId: child.id,
+          askingPrice: 99.99,
+        });
+
+      const res = await request(app).get(
+        `/api/listings?categoryId=${parent.id}`,
+      );
+
+      expect(res.status).toBe(200);
+      expect(
+        res.body.data.some((listing) => listing.categoryId === child.id),
+      ).toBe(true);
+    });
   });
 });
