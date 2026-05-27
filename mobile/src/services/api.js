@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const API_BASE_URL =
   process.env.API_URL || "https://marketiq-9qlb.onrender.com/api";
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
 
 let authClient = {
   getRefreshToken: async () => null,
@@ -20,25 +21,20 @@ async function refreshAccessToken() {
   const refreshToken = await authClient.getRefreshToken();
   if (!refreshToken) return null;
 
-  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
+  const data = await request(
+    "/auth/refresh",
+    {
+      method: "POST",
+      body: JSON.stringify({ refreshToken }),
     },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!response.ok) {
-    const error = new Error(data?.message || "Request failed");
-    error.details = data;
-    throw error;
-  }
+    false,
+  );
 
   if (data?.refreshToken) {
     await AsyncStorage.setItem("refreshToken", data.refreshToken);
+  }
+  if (data?.accessToken) {
+    await AsyncStorage.setItem("accessToken", data.accessToken);
   }
 
   if (data?.accessToken && authClient.onTokenRefreshed) {
@@ -48,29 +44,86 @@ async function refreshAccessToken() {
   return data?.accessToken || null;
 }
 
+function createTimeoutSignal(externalSignal, timeoutMs) {
+  if (typeof AbortController === "undefined") {
+    return { signal: externalSignal, cleanup: () => {} };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const abortFromExternalSignal = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else if (externalSignal.addEventListener) {
+      externalSignal.addEventListener("abort", abortFromExternalSignal);
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    cleanup: () => {
+      clearTimeout(timeout);
+      if (externalSignal?.removeEventListener) {
+        externalSignal.removeEventListener("abort", abortFromExternalSignal);
+      }
+    },
+  };
+}
+
 async function request(path, options = {}, retryOnAuthFailure = true) {
   const method = options.method || "GET";
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const {
+    headers,
+    timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS,
+    signal,
+    ...fetchOptions
+  } = options;
+  const timeout = createTimeoutSignal(signal, timeoutMs);
+
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...fetchOptions,
+      signal: timeout.signal,
+      headers: {
+        "Content-Type": "application/json",
+        ...(headers || {}),
+      },
+    });
+  } catch (error) {
+    const isTimeout = error?.name === "AbortError";
+    const requestError = new Error(
+      isTimeout
+        ? "Server request timed out. Please try again."
+        : error?.message || "Network request failed",
+    );
+    requestError.cause = error;
+    requestError.isTimeout = isTimeout;
+    throw requestError;
+  } finally {
+    timeout.cleanup();
+  }
 
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { message: text };
+  }
 
   if (
     response.status === 401 &&
     retryOnAuthFailure &&
-    options.headers?.Authorization?.startsWith("Bearer ")
+    headers?.Authorization?.startsWith("Bearer ")
   ) {
     try {
       const nextAccessToken = await refreshAccessToken();
       if (nextAccessToken) {
         const retryHeaders = {
-          ...(options.headers || {}),
+          ...(headers || {}),
           Authorization: `Bearer ${nextAccessToken}`,
         };
         return request(
@@ -82,6 +135,7 @@ async function request(path, options = {}, retryOnAuthFailure = true) {
           false,
         );
       }
+      if (authClient.onAuthFailure) authClient.onAuthFailure();
     } catch (error) {
       if (authClient.onAuthFailure) authClient.onAuthFailure(error);
     }

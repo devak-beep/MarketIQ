@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Text, View } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -72,6 +72,7 @@ export default function AppNavigator() {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#f8fafc" }}>
         <ActivityIndicator size="large" color="#2563eb" />
+        <Text style={{ marginTop: 12, color: "#64748b", fontSize: 14 }}>Connecting to server...</Text>
       </View>
     );
   }

@@ -10,6 +10,21 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api, configureAuthClient } from "../services/api";
 
 const AuthContext = createContext(null);
+const STORAGE_KEYS = {
+  accessToken: "accessToken",
+  refreshToken: "refreshToken",
+  cachedUser: "cachedUser",
+};
+const AUTH_STORAGE_KEYS = Object.values(STORAGE_KEYS);
+
+function parseCachedUser(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
 
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(null);
@@ -27,13 +42,19 @@ export function AuthProvider({ children }) {
 
     configureAuthClient({
       getRefreshToken: async () =>
-        refreshTokenRef.current || AsyncStorage.getItem("refreshToken"),
+        refreshTokenRef.current ||
+        AsyncStorage.getItem(STORAGE_KEYS.refreshToken),
       onTokenRefreshed: async (nextAccessToken, nextRefreshToken) => {
         if (!mounted) return;
         setToken(nextAccessToken);
+        await AsyncStorage.setItem(STORAGE_KEYS.accessToken, nextAccessToken);
         if (nextRefreshToken) {
           setRefreshToken(nextRefreshToken);
-          await AsyncStorage.setItem("refreshToken", nextRefreshToken);
+          refreshTokenRef.current = nextRefreshToken;
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.refreshToken,
+            nextRefreshToken,
+          );
         }
       },
       onAuthFailure: async () => {
@@ -42,44 +63,122 @@ export function AuthProvider({ children }) {
         refreshTokenRef.current = null;
         setRefreshToken(null);
         setUser(null);
-        await AsyncStorage.removeItem("refreshToken");
+        setLoading(false);
+        await AsyncStorage.multiRemove(AUTH_STORAGE_KEYS);
       },
     });
 
+    const clearSession = async () => {
+      await AsyncStorage.multiRemove(AUTH_STORAGE_KEYS);
+      if (!mounted) return;
+      setToken(null);
+      refreshTokenRef.current = null;
+      setRefreshToken(null);
+      setUser(null);
+    };
+
+    const saveSession = async (
+      nextAccessToken,
+      nextRefreshToken,
+      nextUser,
+    ) => {
+      const entries = [[STORAGE_KEYS.accessToken, nextAccessToken]];
+
+      if (nextRefreshToken) {
+        entries.push([STORAGE_KEYS.refreshToken, nextRefreshToken]);
+      }
+      if (nextUser) {
+        entries.push([STORAGE_KEYS.cachedUser, JSON.stringify(nextUser)]);
+      }
+
+      await AsyncStorage.multiSet(entries);
+    };
+
+    const refreshStoredSession = async (storedRefreshToken, blockStartup) => {
+      if (!storedRefreshToken) return;
+
+      try {
+        const res = await api.refresh(storedRefreshToken);
+        if (!mounted) return;
+        if (!res?.accessToken) {
+          throw new Error("Refresh response did not include an access token.");
+        }
+
+        const nextRefreshToken = res.refreshToken || storedRefreshToken;
+        setToken(res.accessToken);
+        setRefreshToken(nextRefreshToken);
+        refreshTokenRef.current = nextRefreshToken;
+        await saveSession(res.accessToken, nextRefreshToken);
+
+        api.me(res.accessToken)
+          .then(async (me) => {
+            if (!mounted) return;
+            const nextUser = me.user || null;
+            setUser(nextUser);
+            if (nextUser) {
+              await AsyncStorage.setItem(
+                STORAGE_KEYS.cachedUser,
+                JSON.stringify(nextUser),
+              );
+            }
+          })
+          .catch(() => {});
+      } catch (error) {
+        if (blockStartup || error?.status === 401) {
+          await clearSession();
+        }
+      }
+    };
+
+    // Hard safety net: startup should never stay on the splash gate forever.
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 10000);
+
+    const done = () => {
+      clearTimeout(safetyTimer);
+      if (mounted) setLoading(false);
+    };
+
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem("refreshToken");
-        if (!stored) { setLoading(false); return; }
+        const storedValues = await AsyncStorage.multiGet(AUTH_STORAGE_KEYS);
         if (!mounted) return;
-        setRefreshToken(stored);
-        // Restore cached user & mark as loading=false immediately so app opens
-        const cachedUser = await AsyncStorage.getItem("cachedUser");
-        if (cachedUser && mounted) {
-          try {
-            const parsed = JSON.parse(cachedUser);
-            setUser(parsed);
-            // Set a placeholder token so navigator goes to Tabs right away
-            setToken("__restoring__");
-          } catch (_) {}
+        const stored = Object.fromEntries(storedValues);
+        const storedAccessToken = stored[STORAGE_KEYS.accessToken];
+        const storedRefreshToken = stored[STORAGE_KEYS.refreshToken];
+        const cachedUser = parseCachedUser(stored[STORAGE_KEYS.cachedUser]);
+
+        if (cachedUser) {
+          setUser(cachedUser);
         }
-        if (mounted) setLoading(false);
-        // Refresh in background
-        const res = await api.refresh(stored);
-        if (!mounted) return;
-        setToken(res.accessToken);
-        setRefreshToken(res.refreshToken || stored);
-        await AsyncStorage.setItem("refreshToken", res.refreshToken || stored);
-        const me = await api.me(res.accessToken);
-        if (!mounted) return;
-        setUser(me.user || null);
-        await AsyncStorage.setItem("cachedUser", JSON.stringify(me.user || null));
+
+        if (storedRefreshToken) {
+          setRefreshToken(storedRefreshToken);
+          refreshTokenRef.current = storedRefreshToken;
+        }
+
+        if (storedAccessToken) {
+          setToken(storedAccessToken);
+          done();
+          refreshStoredSession(storedRefreshToken, false);
+          return;
+        }
+
+        if (!storedRefreshToken) {
+          return done();
+        }
+
+        await refreshStoredSession(storedRefreshToken, true);
       } catch {
-        await AsyncStorage.multiRemove(["refreshToken", "cachedUser"]);
-        if (mounted) { setToken(null); setUser(null); setLoading(false); }
+        await clearSession();
+      } finally {
+        done();
       }
     })();
     return () => {
       mounted = false;
+      clearTimeout(safetyTimer);
     };
   }, []);
 
@@ -92,21 +191,29 @@ export function AuthProvider({ children }) {
       signIn: async (accessToken, refreshToken, nextUser) => {
         setToken(accessToken);
         setUser(nextUser || null);
+        await AsyncStorage.setItem(STORAGE_KEYS.accessToken, accessToken);
         if (refreshToken) {
           setRefreshToken(refreshToken);
-          await AsyncStorage.setItem("refreshToken", refreshToken);
+          refreshTokenRef.current = refreshToken;
+          await AsyncStorage.setItem(STORAGE_KEYS.refreshToken, refreshToken);
         }
         if (nextUser) {
-          await AsyncStorage.setItem("cachedUser", JSON.stringify(nextUser));
+          await AsyncStorage.setItem(
+            STORAGE_KEYS.cachedUser,
+            JSON.stringify(nextUser),
+          );
+        } else {
+          await AsyncStorage.removeItem(STORAGE_KEYS.cachedUser);
         }
       },
       signOut: async () => {
         const stored =
-          refreshToken || (await AsyncStorage.getItem("refreshToken"));
+          refreshToken ||
+          (await AsyncStorage.getItem(STORAGE_KEYS.refreshToken));
         try {
           if (stored) await api.logout(stored);
         } catch (_) {}
-        await AsyncStorage.multiRemove(["refreshToken", "cachedUser"]);
+        await AsyncStorage.multiRemove(AUTH_STORAGE_KEYS);
         setToken(null);
         refreshTokenRef.current = null;
         setRefreshToken(null);

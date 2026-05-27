@@ -233,7 +233,7 @@ export default function PostItemScreen() {
     setSubmitting(true);
     try {
       const payload = {
-        categoryId: categoryId.trim(),
+        categoryId: (subcategoryId || categoryId).trim(),
         title: title.trim(),
         description: description.trim(),
         condition,

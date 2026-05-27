@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Dimensions,
   Image,
@@ -80,14 +79,14 @@ export default function ListingDetailsScreen({ route }) {
 
   if (!listing) {
     return (
-      <SafeAreaView style={styles.screen}>
+      <View style={styles.screen}>
         <Text style={styles.empty}>No listing data available.</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.screen}>
+    <View style={styles.screen}>
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
@@ -190,7 +189,7 @@ export default function ListingDetailsScreen({ route }) {
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
