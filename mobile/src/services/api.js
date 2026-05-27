@@ -177,7 +177,7 @@ export const api = {
     }),
   me: (token) =>
     request("/auth/me", { headers: { Authorization: `Bearer ${token}` } }),
-  categories: () => request("/categories"),
+  categories: (options = {}) => request("/categories", options),
   listings: (query = {}) => {
     const filteredQuery = Object.fromEntries(
       Object.entries(query).filter(

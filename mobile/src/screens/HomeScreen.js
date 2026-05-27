@@ -33,6 +33,16 @@ export default function HomeScreen({ navigation }) {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const result = await api.categories({ timeoutMs: 30000 });
+      setCategories(result.data || []);
+      setCategoriesError("");
+    } catch (error) {
+      setCategoriesError("Failed to load categories.");
+    }
+  }, []);
+
   function parsePrice(value) {
     const trimmed = String(value || "").trim();
     if (!trimmed) return null;
@@ -109,14 +119,8 @@ export default function HomeScreen({ navigation }) {
   );
 
   useEffect(() => {
-    api
-      .categories()
-      .then((result) => {
-        setCategories(result.data || []);
-        setCategoriesError("");
-      })
-      .catch(() => setCategoriesError("Failed to load categories."));
-  }, []);
+    fetchCategories();
+  }, [fetchCategories]);
 
   useEffect(() => {
     setLoading(true);
@@ -135,6 +139,7 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = () => {
     setRefreshing(true);
+    fetchCategories();
     fetchListings(1, true);
   };
 
@@ -248,7 +253,12 @@ export default function HomeScreen({ navigation }) {
                 </ScrollView>
               </>
             )}
-            {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
+            {categoriesError ? (
+              <Pressable onPress={fetchCategories} style={styles.retryRow}>
+                <Text style={styles.error}>{categoriesError}</Text>
+                <Text style={styles.retryText}>Retry</Text>
+              </Pressable>
+            ) : null}
             {loading ? <ActivityIndicator size="large" color="#2563eb" style={{ marginTop: 16 }} /> : null}
           </View>
         }
@@ -322,7 +332,16 @@ const styles = StyleSheet.create({
   error: {
     color: "#ef4444",
     fontWeight: "700",
+  },
+  retryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
     marginBottom: 10,
+  },
+  retryText: {
+    color: "#2563eb",
+    fontWeight: "800",
   },
   empty: { textAlign: "center", marginTop: 30, color: "#64748b" },
 });
