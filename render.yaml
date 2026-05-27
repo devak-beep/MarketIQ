@@ -5,8 +5,8 @@ services:
     plan: free
     repo: https://github.com/devak-beep/MarketIQ
     branch: main
-    buildCommand: cd server && npm install
-    startCommand: cd server && npm start
+    buildCommand: cd server && npm install && npx prisma generate
+    startCommand: cd server && npx prisma migrate deploy && node prisma/seed.js && npm start
     envVars:
       - key: DATABASE_URL
         value: REPLACE_WITH_YOUR_NEON_URL

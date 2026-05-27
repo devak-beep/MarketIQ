@@ -47,7 +47,6 @@ export default function PostItemScreen() {
         setCategories(data);
         if (data.length > 0 && !categoryId) {
           setCategoryId(data[0].id);
-          if (data[0].subcategories?.length > 0) setSubcategoryId(data[0].subcategories[0].id);
         }
         if (data.length === 0) setCategoriesError(true);
       })
@@ -68,8 +67,8 @@ export default function PostItemScreen() {
           (s) => s.id === subcategoryId
         );
         const result = await predictPrice({
-          category: selectedCategory?.slug || selectedCategory?.name || categoryId,
-          subcategory: selectedSubcategory?.slug || selectedSubcategory?.name || "general",
+          category: selectedCategory?.name?.toLowerCase() || categoryId,
+          subcategory: selectedSubcategory?.name?.toLowerCase() || "general",
           condition,
           title,
           description,
@@ -305,7 +304,7 @@ export default function PostItemScreen() {
               key={item.id}
               onPress={() => {
                 setCategoryId(item.id);
-                setSubcategoryId(item.subcategories?.[0]?.id || "");
+                setSubcategoryId("");
                 clearFieldError("categoryId");
               }}
               style={[styles.chip, categoryId === item.id && styles.chipActive]}
